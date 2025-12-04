@@ -1,0 +1,463 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Asignar Horario | Panel de Control</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        /* Estilos para compactar y ordenar */
+        body { background-color: #f0f2f5; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+        
+        .card-header { font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; font-size: 0.85rem; }
+        
+/* Estilo para efecto hover en la tabla negra */
+        .bg-dark:hover { 
+            background-color: #3599dc !important; /* Rojo al pasar mouse */
+            transition: background-color 0.2s;
+        }
+        /* Celdas más limpias */
+        td { vertical-align: middle; padding: 0 !important; height: 40px; }
+
+        /* Tablas compactas */
+        .tabla-micro { font-size: 0.65rem; }
+        .tabla-micro th, .tabla-micro td { padding: 4px 2px !important; vertical-align: middle; height: 38px; }
+        .tabla-micro th { background-color: #e9ecef; color: #495057; }
+        
+        /* Celdas de horario */
+        .cell-horario { position: relative; cursor: default; transition: all 0.2s; }
+        .cell-horario:hover { filter: brightness(95%); }
+        
+        /* Badges dentro de la tabla */
+        .info-cell { display: flex; flex-direction: column; justify-content: center; line-height: 1.1; width: 100%; height: 100%; }
+        .info-materia { font-weight: bold; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: block; max-width: 95px; margin: 0 auto; }
+        .info-sub { font-size: 0.6rem; opacity: 0.9; }
+
+        /* Panel de horas */
+        .stat-box { background: white; border-radius: 8px; padding: 10px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
+        .stat-value { font-size: 1.5rem; font-weight: bold; line-height: 1; }
+        .stat-label { font-size: 0.7rem; text-transform: uppercase; color: #6c757d; }
+    </style>
+</head>
+<body class="bg-light">
+
+    <nav class="navbar navbar-expand-lg navbar-dark bg-dark shadow-sm mb-3">
+        <div class="container-fluid px-4">
+            <span class="navbar-brand fw-bold mb-0 h1">🛠️ Gestor Escolar</span>
+            <div class="d-flex gap-2">
+                <a href="/gestion-vacantes" class="btn btn-outline-danger btn-sm fw-bold me-2">📢 Vacantes</a>
+                <a href="/gestion-maestros" class="btn btn-outline-light btn-sm">👨‍🏫 Docentes</a>
+                <a href="/gestion-materias" class="btn btn-outline-warning btn-sm">📚 Materias</a>
+                <a href="/gestion-grupos" class="btn btn-outline-success btn-sm">👥 Grupos</a>
+                <button onclick="cerrarSesion()" class="btn btn-danger btn-sm ms-3">Salir</button>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container-fluid px-4">
+        
+        <div class="row g-3 mb-3">
+            <div class="col-lg-9">
+                <div class="card shadow-sm border-0 h-100">
+                    <div class="card-header bg-primary text-white py-2 fw-bold small">
+                        📅 NUEVA ASIGNACIÓN
+                    </div>
+                    <div class="card-body py-3">
+                        <form id="formAsignar">
+                            <div class="row g-2 align-items-end">
+                                <div class="col-md-3">
+                                    <label class="form-label small fw-bold text-success">1. Grupo</label>
+                                    <select id="selectGrupo" class="form-select form-select-sm fw-bold text-success border-success" required>
+                                        <option value="" disabled selected>-- Seleccionar --</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-4">
+                                    <label class="form-label small fw-bold text-primary">2. Materia (Por Semestre)</label>
+                                    <select id="selectAsignatura" class="form-select form-select-sm" required disabled>
+                                        <option value="" disabled selected>⬅ Elige Grupo primero</option>
+                                    </select>
+                                </div>
+                                <div class="d-none">
+                                    <input type="number" id="num_alumnos" value="0">
+                                </div>
+                                <div class="col-md-3">
+                                    <label class="form-label small fw-bold">3. Maestro</label>
+                                    <select id="selectMaestro" class="form-select form-select-sm" required>
+                                        <option value="" disabled selected>Cargando...</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-2">
+                                    <label class="form-label small fw-bold">4. Aula</label>
+                                    <select id="selectAula" class="form-select form-select-sm" required>
+                                        <option value="" disabled selected>Cargando...</option>
+                                    </select>
+                                </div>
+                            </div>
+
+                            <div class="row g-2 mt-1 align-items-end">
+                                <div class="col-md-3">
+                                    <label class="form-label small fw-bold">5. Hora Inicio</label>
+                                    <select id="hora_inicio" class="form-select form-select-sm" required>
+                                        <option value="07:00">07:00 AM</option>
+                                        <option value="08:00">08:00 AM</option>
+                                        <option value="09:00">09:00 AM</option>
+                                        <option value="10:00">10:00 AM</option>
+                                        <option value="11:00">11:00 AM</option>
+                                        <option value="12:00">12:00 PM</option>
+                                        <option value="13:00">01:00 PM</option>
+                                        <option value="14:00">02:00 PM</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-9">
+                                    <button type="submit" class="btn btn-success btn-sm w-100 fw-bold">
+                                        💾 GUARDAR ASIGNACIÓN SEMANAL
+                                    </button>
+                                </div>
+                            </div>
+                        </form>
+                        <div id="mensaje" class="mt-2 alert d-none py-1 small text-center mb-0"></div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-lg-3">
+                <div class="card shadow-sm border-0 h-100">
+                    <div class="card-header bg-info text-white text-center py-2 fw-bold small">
+                        ESTADO DOCENTE
+                    </div>
+                    <div class="card-body text-center d-flex flex-column justify-content-center">
+                        <h6 id="lblNombreMaestro" class="fw-bold text-dark mb-3">Seleccione Docente</h6>
+                        <div class="row g-1">
+                            <div class="col-4 border-end">
+                                <div class="h4 mb-0 text-secondary" id="lblMaximas">-</div>
+                                <small class="text-muted" style="font-size:0.6rem">TOTAL</small>
+                            </div>
+                            <div class="col-4 border-end">
+                                <div class="h4 mb-0 text-primary" id="lblOcupadas">-</div>
+                                <small class="text-muted" style="font-size:0.6rem">OCUP</small>
+                            </div>
+                            <div class="col-4">
+                                <div class="h4 mb-0 text-success" id="lblRestantes">-</div>
+                                <small class="text-muted" style="font-size:0.6rem">LIBRES</small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="row mb-3">
+            <div class="col-12">
+                <div class="card shadow-sm border-0">
+                    <div class="card-header bg-dark text-white py-1 small d-flex justify-content-between">
+                        <span>👨‍🏫 HORARIO DEL DOCENTE: <span id="tituloMaestro" class="fw-bold text-warning">---</span></span>
+                    </div>
+                    <div class="table-responsive">
+                        <table class="table table-bordered text-center mb-0 tabla-micro" id="tablaMaestro">
+                            <thead class="table-light"><tr><th>Hr</th><th>Lunes</th><th>Martes</th><th>Miércoles</th><th>Jueves</th><th>Viernes</th></tr></thead>
+                            <tbody></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="row g-3">
+            <div class="col-lg-6">
+                <div class="card border-0 shadow-sm h-100">
+                    <div class="card-header bg-secondary text-white text-center py-1 small">
+                        🏫 AULA: <span id="tituloAula" class="fw-bold text-warning">---</span>
+                    </div>
+                    <div class="table-responsive">
+                        <table class="table table-bordered text-center mb-0 tabla-micro" id="tablaAula">
+                            <thead class="table-light"><tr><th>Hr</th><th>L</th><th>M</th><th>M</th><th>J</th><th>V</th></tr></thead>
+                            <tbody></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-lg-6">
+                <div class="card border-0 shadow-sm h-100">
+                    <div class="card-header bg-success text-white text-center py-1 small">
+                        👥 GRUPO: <span id="tituloGrupo" class="fw-bold text-warning">---</span>
+                    </div>
+                    <div class="table-responsive">
+                        <table class="table table-bordered text-center mb-0 tabla-micro" id="tablaGrupo">
+                            <thead class="table-light"><tr><th>Hr</th><th>L</th><th>M</th><th>M</th><th>J</th><th>V</th></tr></thead>
+                            <tbody></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <script>
+
+
+        const usuarioLogueado = JSON.parse(localStorage.getItem('usuario'));
+        if (!usuarioLogueado) window.location.href = '/';
+        function cerrarSesion() { localStorage.removeItem('usuario'); window.location.href = '/'; }
+
+        let listaGrupos = []; 
+        let listaAsignaturas = [];
+
+        document.addEventListener('DOMContentLoaded', async () => {
+            generarTablasVacias(); 
+
+            try {
+                const res = await fetch('/api/datos-formulario');
+                const datos = await res.json();
+
+                listaGrupos = datos.grupos;
+                listaAsignaturas = datos.asignaturas;
+
+                // Llenar Selects
+                const llenar = (id, lista) => {
+                    const s = document.getElementById(id);
+                    s.innerHTML = '<option value="" selected disabled>-- Seleccionar --</option>';
+                    lista.forEach(i => s.innerHTML += `<option value="${i.id}">${i.nombre}</option>`);
+                };
+
+                // Maestros (Con Vacante)
+                const selectM = document.getElementById('selectMaestro');
+                selectM.innerHTML = '<option value="" selected disabled>-- Seleccionar --</option>';
+                selectM.innerHTML += '<option value="0" style="color:#dc3545; font-weight:bold;">🚫 SIN DOCENTE</option>';
+                datos.maestros.forEach(i => selectM.innerHTML += `<option value="${i.id}">${i.nombre}</option>`);
+
+                llenar('selectAula', datos.aulas);
+                
+                // Grupos
+                const selectG = document.getElementById('selectGrupo');
+                selectG.innerHTML = '<option value="" selected disabled>-- Seleccionar --</option>';
+                datos.grupos.forEach(g => {
+                    selectG.innerHTML += `<option value="${g.id}">Sem ${g.semestre} - ${g.nombre}</option>`;
+                });
+
+                document.getElementById('selectAsignatura').innerHTML = '<option value="" disabled selected>⬅ Elige Grupo</option>';
+
+            } catch (error) { console.error(error); }
+
+            // ... código anterior de carga ...
+
+            // FORZAR RESET DE SELECTS AL INICIO
+            // Esto evita que el navegador recuerde una selección vieja que ya no es válida
+            document.getElementById('selectGrupo').value = "";
+            document.getElementById('selectMaestro').value = "";
+            document.getElementById('selectAula').value = "";
+            document.getElementById('selectAsignatura').value = "";
+            document.getElementById('selectAsignatura').disabled = true; // Bloqueado hasta elegir grupo
+        });
+
+        // --- LÓGICA DE EVENTOS ---
+// C. CAMBIO DE GRUPO -> FILTRAR MATERIAS Y PINTAR TABLA
+        document.getElementById('selectGrupo').addEventListener('change', (e) => {
+            const idGrupo = parseInt(e.target.value);
+            const grupo = listaGrupos.find(g => g.id === idGrupo);
+            
+            if (grupo) {
+                // 1. Pintar tabla visual del grupo
+                const texto = e.target.options[e.target.selectedIndex].text;
+                // Limpiamos el texto "(26 alum)" para que el título se vea limpio
+                document.getElementById('tituloGrupo').innerText = texto.split('(')[0].trim();
+                pintarTabla('grupo', idGrupo);
+
+                // 2. FILTRAR MATERIAS POR SEMESTRE (CORREGIDO)
+                const semestreGrupo = grupo.semestre;
+                const selectMat = document.getElementById('selectAsignatura');
+                
+                // Limpiamos el select primero
+                selectMat.innerHTML = '<option value="" selected disabled>-- Seleccionar --</option>';
+                
+                // Filtramos
+                const materiasFiltradas = listaAsignaturas.filter(m => m.semestre === semestreGrupo);
+                
+                if (materiasFiltradas.length === 0) {
+                    selectMat.innerHTML = `<option disabled>Sin materias (Sem ${semestreGrupo})</option>`;
+                    // Deshabilitamos para que se note que no hay opciones
+                    selectMat.disabled = true; 
+                } else {
+                    // Habilitamos y llenamos
+                    selectMat.disabled = false; 
+                    materiasFiltradas.forEach(m => {
+                        selectMat.innerHTML += `<option value="${m.id}">${m.nombre} (${m.creditos} cr)</option>`;
+                    });
+                }
+            }
+        });
+
+        // 2. CAMBIO DE MAESTRO
+        document.getElementById('selectMaestro').addEventListener('change', async (e) => {
+            const id = e.target.value;
+            const texto = e.target.options[e.target.selectedIndex].text;
+            document.getElementById('tituloMaestro').innerText = texto;
+            
+            if (id === "0") { // Sin Docente
+                pintarTabla('maestro', null); // Limpiar tabla
+                document.getElementById('lblNombreMaestro').innerText = "Vacante";
+                document.getElementById('lblMaximas').innerText = "-";
+                document.getElementById('lblOcupadas').innerText = "-";
+                document.getElementById('lblRestantes').innerText = "-";
+                return;
+            }
+
+            pintarTabla('maestro', id);
+            const r = await fetch(`/api/maestro/${id}/horas`);
+            const d = await r.json();
+            document.getElementById('lblNombreMaestro').innerText = d.nombre;
+            document.getElementById('lblMaximas').innerText = d.maximas;
+            document.getElementById('lblOcupadas').innerText = d.ocupadas;
+            document.getElementById('lblRestantes').innerText = d.restantes;
+        });
+
+        // 3. CAMBIO DE AULA
+        document.getElementById('selectAula').addEventListener('change', (e) => {
+            document.getElementById('tituloAula').innerText = e.target.options[e.target.selectedIndex].text;
+            pintarTabla('aula', e.target.value);
+        });
+
+// --- 4. GUARDAR ASIGNACIÓN (CORREGIDO) ---
+        document.getElementById('formAsignar').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            // 1. Obtener ID del Grupo
+            const idGrupo = parseInt(document.getElementById('selectGrupo').value);
+            if (!idGrupo) { alert("Selecciona un grupo"); return; }
+
+            // 2. Obtener ALUMNOS directamente de la lista en memoria (Más seguro)
+            const grupoInfo = listaGrupos.find(g => g.id === idGrupo);
+            const cantidadAlumnos = grupoInfo ? grupoInfo.cantidad_alumnos : 30;
+
+            // 3. Manejo de MAESTRO VACANTE
+            let idMaestro = document.getElementById('selectMaestro').value;
+            if (idMaestro === "0" || idMaestro === "") idMaestro = null; // Enviar null explícito
+
+            const horaInicio = document.getElementById('hora_inicio').value;
+
+            const datos = {
+                id_maestro: idMaestro,
+                id_aula: document.getElementById('selectAula').value,
+                id_asignatura: document.getElementById('selectAsignatura').value,
+                id_grupo: idGrupo,
+                num_alumnos: cantidadAlumnos, // Aquí aseguramos que vaya el número correcto (ej. 30)
+                hora_inicio: horaInicio + ":00"
+            };
+
+            console.log("Enviando datos:", datos); // Para depurar en consola (F12)
+
+            try {
+                const respuesta = await fetch('/api/asignar-horario', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(datos)
+                });
+
+                const resultado = await respuesta.json();
+                const box = document.getElementById('mensaje');
+                
+                box.classList.remove('d-none', 'alert-success', 'alert-danger');
+                if(resultado.exito) {
+                    box.classList.add('alert-success');
+                    box.innerHTML = resultado.mensaje;
+                    
+                    // Recargar tablas
+                    document.getElementById('selectAula').dispatchEvent(new Event('change'));
+                    document.getElementById('selectGrupo').dispatchEvent(new Event('change'));
+                    
+                    // Solo recargar tabla maestro si no es vacante
+                    const selectM = document.getElementById('selectMaestro');
+                    if(selectM.value !== "0") selectM.dispatchEvent(new Event('change'));
+
+                } else {
+                    box.classList.add('alert-danger');
+                    box.innerHTML = resultado.mensaje; // Aquí verás por qué falló
+                }
+            } catch (error) {
+                console.error(error);
+                alert("Error de conexión con el servidor");
+            }
+        });
+
+// --- DIBUJO DE TABLAS (VERSIÓN LIMPIA Y ELEGANTE) ---
+        const generarTablasVacias = () => {
+            const horas = [7, 8, 9, 10, 11, 12, 13, 14];
+            // Usamos letras simples para los días para ahorrar espacio
+            const filas = (p) => horas.map(h => `
+                <tr>
+                    <td class="fw-bold bg-light text-secondary align-middle" style="font-size:0.7rem; width:10%;">${h}:00</td>
+                    <td id="cell-${p}-Lunes-${h}"></td>
+                    <td id="cell-${p}-Martes-${h}"></td>
+                    <td id="cell-${p}-Miercoles-${h}"></td>
+                    <td id="cell-${p}-Jueves-${h}"></td>
+                    <td id="cell-${p}-Viernes-${h}"></td>
+                </tr>`).join('');
+            
+            document.querySelector('#tablaAula tbody').innerHTML = filas('aula');
+            document.querySelector('#tablaMaestro tbody').innerHTML = filas('maestro');
+            document.querySelector('#tablaGrupo tbody').innerHTML = filas('grupo');
+        };
+
+const pintarTabla = async (tipo, id) => {
+            // 1. Limpiar celdas
+            document.querySelectorAll(`[id^="cell-${tipo}-"]`).forEach(td => { 
+                td.innerHTML=''; 
+                td.className=''; 
+                td.removeAttribute('onclick'); 
+                td.removeAttribute('title');
+                td.style.cursor='default';
+            });
+
+            if(!id) return;
+
+            try {
+                const res = await fetch(`/api/horario/${tipo}/${id}`);
+                const clases = await res.json();
+
+                clases.forEach(c => {
+                    const h = parseInt(c.hora_inicio.split(':')[0]);
+                    const celda = document.getElementById(`cell-${tipo}-${c.dia_semana}-${h}`);
+                    
+                    if(celda) {
+                        // Datos seguros
+                        const mat = c.asignatura || "Materia";
+                        const gru = c.grupo || "S/G";
+                        const aul = c.nombre_aula || "S/A";
+                        const prof = c.maestro ? c.maestro.split(' ')[0] : "Vacante";
+
+                        let info = "";
+                        let colorClass = "";
+                        
+                        // --- CONFIGURACIÓN COMÚN DE INTERACTIVIDAD ---
+                        // Ahora se aplica a TODAS las tablas
+                        celda.style.cursor = "pointer";
+                        celda.title = "Clic para eliminar bloque completo";
+                        celda.setAttribute('onclick', `borrar(${c.id_aula}, '${c.dia_semana}', '${c.hora_inicio}')`);
+                        // Agregamos la clase que hace el efecto rojo al pasar el mouse
+                        celda.classList.add('celda-borrable');
+
+                        // --- DISEÑO ESPECÍFICO POR TIPO ---
+                        if (tipo === 'aula') {
+                            // AULA: Azul
+                            celda.classList.add('bg-primary', 'text-white'); 
+                            info = `<div class="info-box"><div class="info-materia">${mat}</div><div class="info-detalles">${prof} (${gru})</div></div>`;
+                        } 
+                        else if (tipo === 'maestro') {
+                            // MAESTRO: Negra
+                            celda.classList.add('bg-dark', 'text-white');
+                            info = `<div class="info-box"><div class="info-materia text-warning">${mat}</div><div class="info-detalles">${aul} - ${gru}</div></div>`;
+                        } 
+                        else if (tipo === 'grupo') {
+                            // GRUPO: Verde
+                            celda.classList.add('bg-success', 'text-white');
+                            info = `<div class="info-box"><div class="info-materia">${mat}</div><div class="info-detalles">${prof} [${aul}]</div></div>`;
+                        }
+
+                        celda.innerHTML = info;
+                    }
+                });
+            } catch (e) { console.error(e); }
+        };
+    </script>
+</body>
+</html>

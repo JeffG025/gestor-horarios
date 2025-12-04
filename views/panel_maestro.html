@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Mi Panel | Gestor de Horarios</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+    <style>
+        .horario-pdf { background: white; padding: 20px; } /* Estilo para el PDF */
+    </style>
+</head>
+<body class="bg-light">
+
+    <nav class="navbar navbar-dark bg-dark">
+        <div class="container">
+            <span class="navbar-brand mb-0 h1">👨‍🏫 Portal del Maestro</span>
+            <button onclick="cerrarSesion()" class="btn btn-outline-light btn-sm">Cerrar Sesión</button>
+        </div>
+    </nav>
+
+    <div class="container mt-5">
+        
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h3>Hola, <span id="lblNombre" class="text-primary">...</span></h3>
+    
+    <div>
+        <button onclick="generarQR()" class="btn btn-dark me-2" data-bs-toggle="modal" data-bs-target="#modalQR">
+    📱 Generar QR
+        </button>
+        
+        <button onclick="descargarPDF()" class="btn btn-danger">
+            📄 Descargar PDF
+        </button>
+    </div>
+</div>
+
+        <div class="card shadow border-info mb-4">
+            <div class="card-body text-center">
+                <div class="row">
+                    <div class="col-4 border-end">
+                        <small class="text-muted">Contrato</small> <h4 id="lblTotal">-</h4>
+                    </div>
+                    <div class="col-4 border-end">
+                        <small class="text-muted">Asignadas</small> <h4 id="lblOcupadas">-</h4>
+                    </div>
+                    <div class="col-4">
+                        <small class="text-muted">Restantes</small> <h4 id="lblRestantes" class="text-success">-</h4>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="card shadow" id="areaImprimible">
+            <div class="card-header bg-dark text-white text-center">
+                <h5 class="mb-0">Horario de Clases</h5>
+            </div>
+            <div class="card-body p-0">
+                <table class="table table-bordered text-center mb-0">
+                    <thead class="table-light">
+                        <tr><th>Hora</th><th>Lunes</th><th>Martes</th><th>Miércoles</th><th>Jueves</th><th>Viernes</th></tr>
+                    </thead>
+                    <tbody id="tablaCuerpo">
+                        </tbody>
+                </table>
+            </div>
+            <div class="card-footer text-muted text-center small">
+                Generado por Gestor de Horarios v1.0
+            </div>
+        </div>
+    </div>
+    <div class="modal fade" id="modalQR" tabindex="-1">
+    <div class="modal-dialog modal-sm">
+        <div class="modal-content">
+            <div class="modal-header bg-dark text-white">
+                <h6 class="modal-title">Escanea tu Horario</h6>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body text-center p-3">
+                
+                <div id="contenedorImagenQR" class="mb-3">
+                    <p class="text-muted">Esperando...</p>
+                </div>
+
+                <div class="d-grid">
+                    <a id="btnEnlaceManual" href="#" target="_blank" class="btn btn-outline-primary btn-sm">
+                        Abrir enlace manualmente
+                    </a>
+                </div>
+
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+
+    <script>
+        const usuario = JSON.parse(localStorage.getItem('usuario'));
+        if (!usuario || usuario.rol !== 'maestro') window.location.href = '/';
+        document.getElementById('lblNombre').innerText = usuario.nombre;
+
+        // 1. CARGAR DATOS
+        async function cargarDatos() {
+            // Cargar Horas
+            const resHoras = await fetch(`/api/maestro/${usuario.id}/horas`);
+            const datosHoras = await resHoras.json();
+            document.getElementById('lblTotal').innerText = datosHoras.maximas;
+            document.getElementById('lblOcupadas').innerText = datosHoras.ocupadas;
+            document.getElementById('lblRestantes').innerText = datosHoras.restantes;
+
+            // Cargar Tabla
+            generarTablaVacia();
+            const resHorario = await fetch(`/api/horario/maestro/${usuario.id}`);
+            const clases = await resHorario.json();
+            
+            clases.forEach(clase => {
+                const horaBase = parseInt(clase.hora_inicio.split(':')[0]);
+                const celda = document.getElementById(`cell-${clase.dia_semana}-${horaBase}`);
+                if (celda) {
+                    celda.innerHTML = `<b>${clase.asignatura}</b><br><small>${clase.nombre_aula}</small>`;
+                    celda.classList.add('table-success'); // Color verde suave
+                }
+            });
+        }
+
+        function generarTablaVacia() {
+            const horas = [7, 8, 9, 10, 11, 12, 13, 14];
+            let html = '';
+            horas.forEach(h => {
+                const horaF = `${h.toString().padStart(2, '0')}:00`;
+                html += `<tr>
+                    <td class="fw-bold bg-light">${horaF}</td>
+                    <td id="cell-Lunes-${h}"></td>
+                    <td id="cell-Martes-${h}"></td>
+                    <td id="cell-Miercoles-${h}"></td>
+                    <td id="cell-Jueves-${h}"></td>
+                    <td id="cell-Viernes-${h}"></td>
+                </tr>`;
+            });
+            document.getElementById('tablaCuerpo').innerHTML = html;
+        }
+
+        // 2. FUNCIÓN DESCARGAR PDF
+        function descargarPDF() {
+            const elemento = document.getElementById('areaImprimible');
+            const opciones = {
+                margin: 10,
+                filename: `Horario_${usuario.nombre}.pdf`,
+                image: { type: 'jpeg', quality: 0.98 },
+                html2canvas: { scale: 2 },
+                jsPDF: { unit: 'mm', format: 'a4', orientation: 'landscape' } // Horizontal para que quepa bien
+            };
+            html2pdf().set(opciones).from(elemento).save();
+        }
+
+        function cerrarSesion() {
+            localStorage.removeItem('usuario');
+            window.location.href = '/';
+        }
+
+        cargarDatos();
+
+        // ... tus otras funciones (cargarDatos, descargarPDF) ...
+// VARIABLES GLOBALES PARA EL QR
+    let qrGenerado = false; // Para no generar el mismo QR mil veces
+    let urlDestinoGlobal = ""; 
+
+// 3. FUNCIÓN GENERAR QR (MÉTODO API INFALIBLE)
+    function generarQR() {
+        const contenedor = document.getElementById('contenedorImagenQR');
+        const btnEnlace = document.getElementById('btnEnlaceManual');
+        
+        // Mensaje de carga mientras llega la imagen
+        contenedor.innerHTML = "<div class='spinner-border text-primary' role='status'></div>";
+
+        // 1. TU URL DE NGROK (Asegúrate de que sea la actual de la pantalla negra)
+        // Ejemplo: "https://a1b2-c3d4.ngrok-free.app"
+        let baseUrl = "https://paleoclimatologic-fredia-nondivulging.ngrok-free.dev "; 
+
+        // Limpieza de seguridad
+        baseUrl = baseUrl.trim().replace(/\/$/, ""); 
+        if (!baseUrl.startsWith("http")) baseUrl = "https://" + baseUrl;
+
+        // 2. CONSTRUIR DATOS
+        const id = usuario.id;
+        const nombre = encodeURIComponent(usuario.nombre);
+        const urlFinal = `${baseUrl}/ver-horario-movil?id=${id}&nombre=${nombre}`;
+
+        console.log("Generando QR para:", urlFinal);
+
+        // 3. ACTUALIZAR EL BOTÓN MANUAL (Por si el QR falla al escanear)
+        btnEnlace.href = urlFinal;
+
+        // 4. CREAR LA IMAGEN USANDO LA API
+        // size=250x250: Tamaño bueno
+        // margin=10: Borde blanco vital para que la cámara enfoque
+        const apiQR = `https://api.qrserver.com/v1/create-qr-code/?size=250x250&margin=10&data=${encodeURIComponent(urlFinal)}`;
+
+        // Esperamos un poquito para que el modal se vea antes de cargar la imagen
+        setTimeout(() => {
+            contenedor.innerHTML = `
+                <img src="${apiQR}" 
+                     alt="QR Code" 
+                     class="img-fluid border" 
+                     style="border-radius: 8px; min-width: 200px; min-height: 200px;">
+                <p class="mt-2 small text-success fw-bold">✅ Listo para escanear</p>
+            `;
+        }, 500);
+    }
+    </script>
+</body>
+</html>

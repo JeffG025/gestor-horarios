@@ -1,0 +1,335 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Gestión de Grupos</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+    <style> 
+        .lista-scroll { max-height: 400px; overflow-y: auto; } 
+        /* Estilos compactos para la tabla de horario */
+        .tabla-micro { font-size: 0.65rem; }
+        .tabla-micro th, .tabla-micro td { padding: 2px !important; vertical-align: middle; height: 40px; }
+        .cell-info { line-height: 1.1; display: flex; flex-direction: column; justify-content: center; height: 100%; }
+    </style>
+</head>
+<body class="bg-light">
+
+    <nav class="navbar navbar-dark bg-success mb-4">
+        <div class="container">
+            <span class="navbar-brand mb-0 h1">👥 Gestión de Grupos</span>
+            <div>
+                <a href="/asignar-clase" class="btn btn-light btn-sm me-2">⬅ Volver a Horarios</a>
+                <button onclick="cerrarSesion()" class="btn btn-dark btn-sm">Cerrar Sesión</button>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container">
+        <div class="card shadow border-0">
+            <div class="card-header bg-white d-flex justify-content-between align-items-center py-3">
+                <h5 class="mb-0 text-success fw-bold">Catálogo de Grupos</h5>
+                <button class="btn btn-success btn-sm fw-bold shadow-sm" onclick="abrirModalCrear()">
+                    ➕ Nuevo Grupo
+                </button>
+            </div>
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle mb-0 text-center">
+                        <thead class="table-success">
+                            <tr>
+                                <th>Nombre</th>
+                                <th>Capacidad</th>
+                                <th>Semestre</th>
+                                <th>Acciones</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tablaGrupos"></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal fade" id="modalGrupo" tabindex="-1">
+        <div class="modal-dialog modal-sm">
+            <div class="modal-content">
+                <div class="modal-header bg-success text-white">
+                    <h5 class="modal-title" id="tituloModal">Grupo</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="formGrupo">
+                        <input type="hidden" id="idGrupo">
+                        <div class="mb-3">
+                            <label class="form-label small fw-bold">Nombre</label>
+                            <input type="text" id="nombre" class="form-control" required placeholder="Ej: A">
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label small fw-bold">Semestre</label>
+                            <select id="semestre" class="form-select" required>
+                                <option value="1">1ro</option><option value="2">2do</option>
+                                <option value="3">3ro</option><option value="4">4to</option>
+                                <option value="5">5to</option><option value="6">6to</option>
+                                <option value="7">7mo</option><option value="8">8vo</option>
+                                <option value="9">9no</option>
+                            </select>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label small fw-bold">Capacidad</label>
+                            <input type="number" id="cantidad" class="form-control" required min="10" max="30">
+                        </div>
+                        <button type="submit" class="btn btn-success w-100">Guardar</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal fade" id="modalAlumnos" tabindex="-1">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header bg-primary text-white">
+                    <h5 class="modal-title">Lista: <span id="tituloGrupoAlumnos" class="fw-bold text-warning"></span></h5>
+                    <div class="ms-auto">
+                        <button onclick="generarQRLista()" class="btn btn-light btn-sm me-2">📱 QR</button>
+                        <button onclick="descargarListaPDF()" class="btn btn-danger btn-sm">📄 PDF</button>
+                        <button type="button" class="btn-close btn-close-white ms-2" data-bs-dismiss="modal"></button>
+                    </div>
+                </div>
+                <div class="modal-body p-0">
+                    <div id="zonaQRLista" class="bg-light p-3 text-center d-none border-bottom">
+                        <div id="contenedorQRLista"></div>
+                        <button onclick="document.getElementById('zonaQRLista').classList.add('d-none')" class="btn btn-sm btn-link text-muted mt-2">Ocultar</button>
+                    </div>
+                    <div class="lista-scroll bg-white" id="areaImprimibleLista">
+                        <div class="p-3 text-center d-none d-print-block" id="headerListaPDF">
+                            <h3>Lista de Asistencia - <span id="nombrePDFLista"></span></h3>
+                        </div>
+                        <table class="table table-striped table-sm mb-0">
+                            <thead class="table-light sticky-top">
+                                <tr><th class="text-center">#</th><th>Nombre Completo</th></tr>
+                            </thead>
+                            <tbody id="tablaListaAlumnos"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal fade" id="modalHorario" tabindex="-1">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header bg-dark text-white">
+                    <h5 class="modal-title">Horario: <span id="tituloHorario" class="text-warning"></span></h5>
+                    <div class="ms-auto">
+                        <button onclick="generarQRHorario()" class="btn btn-light btn-sm me-2">📱 QR</button>
+                        <button onclick="descargarHorarioPDF()" class="btn btn-danger btn-sm">📄 PDF</button>
+                        <button type="button" class="btn-close btn-close-white ms-2" data-bs-dismiss="modal"></button>
+                    </div>
+                </div>
+                <div class="modal-body p-0">
+                    <div id="zonaQRHorario" class="bg-light p-3 text-center d-none border-bottom">
+                        <div id="contenedorQRHorario"></div>
+                        <button onclick="document.getElementById('zonaQRHorario').classList.add('d-none')" class="btn btn-sm btn-link text-muted mt-2">Ocultar</button>
+                    </div>
+                    
+                    <div id="areaImprimibleHorario" class="p-2 bg-white">
+                        <div class="text-center mb-2 d-none d-print-block" id="encabezadoPDFHorario">
+                            <h3>Horario Escolar - <span id="nombreGrupoPDF"></span></h3>
+                        </div>
+                        <div class="table-responsive">
+                            <table class="table table-bordered text-center tabla-micro mb-0" id="tablaVisual">
+                                <thead class="table-secondary">
+                                    <tr><th>Hr</th><th>Lun</th><th>Mar</th><th>Mié</th><th>Jue</th><th>Vie</th></tr>
+                                </thead>
+                                <tbody></tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        const usuario = JSON.parse(localStorage.getItem('usuario'));
+        if (!usuario || usuario.rol !== 'jefe') window.location.href = '/';
+
+        const modalGrupo = new bootstrap.Modal(document.getElementById('modalGrupo'));
+        const modalAlumnos = new bootstrap.Modal(document.getElementById('modalAlumnos'));
+        const modalHorario = new bootstrap.Modal(document.getElementById('modalHorario'));
+        let modoEdicion = false;
+        let idGrupoActual = null;
+        let nombreGrupoActual = "";
+
+        // 1. CARGAR GRUPOS
+        async function cargarGrupos() {
+            const res = await fetch('/api/grupos');
+            const lista = await res.json();
+            const tbody = document.getElementById('tablaGrupos');
+            tbody.innerHTML = '';
+
+            lista.forEach(g => {
+                tbody.innerHTML += `
+                    <tr>
+                        <td class="fw-bold">${g.nombre}</td>
+                        <td><span class="badge bg-secondary">${g.cantidad_alumnos}</span></td>
+                        <td><span class="badge bg-warning text-dark">Sem ${g.semestre}</span></td>
+                        <td>
+                            <button onclick="verAlumnos(${g.id}, '${g.nombre}')" class="btn btn-outline-primary btn-sm me-1" title="Ver Lista">👥</button>
+                            <button onclick="verHorario(${g.id}, '${g.nombre}')" class="btn btn-outline-dark btn-sm me-1" title="Ver Horario">👁️</button>
+                            <button onclick="abrirModalEditar(${g.id}, '${g.nombre}', ${g.cantidad_alumnos}, ${g.semestre})" class="btn btn-outline-secondary btn-sm me-1">✏️</button>
+                            <button onclick="eliminarGrupo(${g.id})" class="btn btn-outline-danger btn-sm">🗑️</button>
+                        </td>
+                    </tr>`;
+            });
+        }
+
+        // --- VER HORARIO (CON DATOS COMPLETOS) ---
+        async function verHorario(id, nombre) {
+            idGrupoActual = id; 
+            nombreGrupoActual = nombre;
+            
+            document.getElementById('tituloHorario').innerText = nombre;
+            document.getElementById('nombreGrupoPDF').innerText = nombre;
+            document.getElementById('zonaQRHorario').classList.add('d-none');
+
+            // Generar tabla vacía
+            const tbody = document.querySelector('#tablaVisual tbody');
+            tbody.innerHTML = '';
+            const horas = [7, 8, 9, 10, 11, 12, 13, 14];
+            horas.forEach(h => {
+                const horaF = `${h.toString().padStart(2, '0')}:00`;
+                tbody.innerHTML += `<tr>
+                    <td class="fw-bold bg-light">${horaF}</td>
+                    <td id="cell-Lunes-${h}"></td><td id="cell-Martes-${h}"></td>
+                    <td id="cell-Miercoles-${h}"></td><td id="cell-Jueves-${h}"></td>
+                    <td id="cell-Viernes-${h}"></td>
+                </tr>`;
+            });
+
+            // Pedir datos
+            const res = await fetch(`/api/horario/grupo/${id}`);
+            const clases = await res.json();
+            
+            clases.forEach(c => {
+                const h = parseInt(c.hora_inicio.split(':')[0]);
+                const celda = document.getElementById(`cell-${c.dia_semana}-${h}`);
+                
+                if(celda) {
+                    // AQUÍ ESTÁ LA MEJORA VISUAL: Materia + Maestro + Aula
+                    const materia = c.asignatura || 'Materia';
+                    const profe = c.maestro || 'Sin Docente';
+                    const aula = c.nombre_aula || 'S/A';
+
+                    celda.innerHTML = `
+                        <div class="cell-info">
+                            <span class="badge bg-success text-truncate w-100 mb-1">${materia}</span>
+                            <small class="d-block text-muted" style="font-size:0.6rem;">${profe}</small>
+                            <b class="d-block" style="font-size:0.65rem;">${aula}</b>
+                        </div>
+                    `;
+                    celda.classList.add('table-success'); // Fondo verde suave
+                }
+            });
+
+            modalHorario.show();
+        }
+
+        // --- VER ALUMNOS ---
+        async function verAlumnos(id, nombre) {
+            idGrupoActual = id; nombreGrupoActual = nombre;
+            document.getElementById('tituloGrupoAlumnos').innerText = nombre;
+            document.getElementById('nombrePDFLista').innerText = nombre;
+            document.getElementById('zonaQRLista').classList.add('d-none');
+
+            const tbody = document.getElementById('tablaListaAlumnos');
+            tbody.innerHTML = '<tr><td colspan="2" class="text-center">Cargando...</td></tr>';
+            modalAlumnos.show();
+
+            const res = await fetch(`/api/grupos/${id}/alumnos`);
+            const lista = await res.json();
+            tbody.innerHTML = '';
+
+            if(lista.length === 0) tbody.innerHTML = '<tr><td colspan="2" class="text-center text-muted">Sin alumnos generados</td></tr>';
+            lista.forEach((alum, index) => {
+                tbody.innerHTML += `<tr><td class="text-center text-muted small">${index + 1}</td><td>${alum.nombre_completo}</td></tr>`;
+            });
+        }
+
+        // --- CRUD BASICO ---
+        function abrirModalCrear() { 
+            modoEdicion = false; 
+            document.getElementById('tituloModal').innerText="Nuevo Grupo";
+            document.getElementById('formGrupo').reset(); 
+            document.getElementById('idGrupo').value='';
+            modalGrupo.show(); 
+        }
+        
+        function abrirModalEditar(id, n, c, sem) { 
+            modoEdicion = true; 
+            document.getElementById('tituloModal').innerText="Editar Grupo";
+            document.getElementById('idGrupo').value=id; 
+            document.getElementById('nombre').value=n;
+            document.getElementById('cantidad').value=c; 
+            document.getElementById('semestre').value=sem; // Cargar semestre
+            modalGrupo.show(); 
+        }
+
+        document.getElementById('formGrupo').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const datos = { 
+                id: document.getElementById('idGrupo').value, 
+                nombre: document.getElementById('nombre').value, 
+                cantidad: document.getElementById('cantidad').value,
+                semestre: document.getElementById('semestre').value 
+            };
+            const res = await fetch('/api/grupos', { method: modoEdicion?'PUT':'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(datos)});
+            if(res.ok) { modalGrupo.hide(); cargarGrupos(); } else alert("Error");
+        });
+
+        async function eliminarGrupo(id) { if(confirm("¿Eliminar?")) { await fetch(`/api/grupos/${id}`, {method:'DELETE'}); cargarGrupos(); } }
+        
+        // --- PDF & QR (Funciones universales) ---
+        function descargarListaPDF() {
+            const elem = document.getElementById('areaImprimibleLista');
+            document.getElementById('headerListaPDF').classList.remove('d-none');
+            const opts = { margin: 10, filename: `Lista_${nombreGrupoActual}.pdf`, image:{type:'jpeg',quality:0.98}, html2canvas:{scale:2}, jsPDF:{unit:'mm',format:'a4',orientation:'portrait'} };
+            html2pdf().set(opts).from(elem).save().then(()=>document.getElementById('headerListaPDF').classList.add('d-none'));
+        }
+        function descargarHorarioPDF() {
+            const elem = document.getElementById('areaImprimibleHorario');
+            document.getElementById('encabezadoPDFHorario').classList.remove('d-none');
+            const opts = { margin: 10, filename: `Horario_${nombreGrupoActual}.pdf`, image:{type:'jpeg',quality:0.98}, html2canvas:{scale:2}, jsPDF:{unit:'mm',format:'a4',orientation:'landscape'} };
+            html2pdf().set(opts).from(elem).save().then(()=>document.getElementById('encabezadoPDFHorario').classList.add('d-none'));
+        }
+
+        // URL Ngrok Fija
+        const NGROK_URL = "https://paleoclimatologic-fredia-nondivulging.ngrok-free.dev"; 
+
+        function mostrarQR(idContenedor, idZona, ruta) {
+            const zona = document.getElementById(idZona);
+            const cont = document.getElementById(idContenedor);
+            zona.classList.remove('d-none');
+            cont.innerHTML = "<div class='spinner-border text-primary'></div>";
+
+            const nombreEnc = encodeURIComponent(nombreGrupoActual);
+            const urlFinal = `${NGROK_URL}${ruta}?id=${idGrupoActual}&nombre=${nombreEnc}`;
+            const apiQR = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&margin=10&data=${encodeURIComponent(urlFinal)}`;
+
+            setTimeout(() => {
+                cont.innerHTML = `<img src="${apiQR}" class="img-fluid border rounded"><p class="mt-2 small fw-bold text-success">✅ Escanea</p>`;
+            }, 500);
+        }
+
+        function generarQRLista() { mostrarQR('contenedorQRLista', 'zonaQRLista', '/ver-lista-movil'); }
+        function generarQRHorario() { mostrarQR('contenedorQRHorario', 'zonaQRHorario', '/ver-horario-grupo-movil'); }
+        function cerrarSesion() { localStorage.removeItem('usuario'); window.location.href='/'; }
+
+        cargarGrupos();
+    </script>
+</body>
+</html>

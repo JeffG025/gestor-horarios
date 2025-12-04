@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Lista de Asistencia</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style> body { background-color: #fff; } </style>
+</head>
+<body class="p-3">
+
+    <div class="text-center mb-4">
+        <h4 class="mb-0">Instituto Tecnológico</h4>
+        <h5 class="text-primary mt-1">Lista de Asistencia</h5>
+        <h3 id="lblGrupo" class="fw-bold">Cargando...</h3>
+    </div>
+
+    <div class="table-responsive">
+        <table class="table table-striped table-bordered align-middle">
+            <thead class="table-dark">
+                <tr>
+                    <th style="width: 50px;" class="text-center">#</th>
+                    <th>Nombre del Alumno</th>
+                    <th style="width: 100px;">Firma</th>
+                </tr>
+            </thead>
+            <tbody id="tablaCuerpo">
+                </tbody>
+        </table>
+    </div>
+
+    <div class="text-center mt-4 text-muted small">
+        Documento generado por Gestor de Horarios
+    </div>
+
+    <script>
+        document.addEventListener("DOMContentLoaded", async () => {
+            const params = new URLSearchParams(window.location.search);
+            const idGrupo = params.get('id');
+            const nombreGrupo = params.get('nombre');
+
+            if(nombreGrupo) document.getElementById('lblGrupo').innerText = nombreGrupo;
+
+            if(!idGrupo) return;
+
+            try {
+                // Headers para ngrok
+                const res = await fetch(`/api/grupos/${idGrupo}/alumnos`, {
+                    headers: new Headers({ "ngrok-skip-browser-warning": "69420" })
+                });
+                const lista = await res.json();
+                const tbody = document.getElementById('tablaCuerpo');
+                
+                lista.forEach((alum, index) => {
+                    tbody.innerHTML += `
+                        <tr>
+                            <td class="text-center fw-bold">${index + 1}</td>
+                            <td>${alum.nombre_completo}</td>
+                            <td></td>
+                        </tr>`;
+                });
+            } catch (error) { console.error(error); }
+        });
+    </script>
+</body>
+</html>

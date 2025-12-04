@@ -1,0 +1,346 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Gestión de Maestros</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css">
+</head>
+<body class="bg-light">
+
+    <nav class="navbar navbar-dark bg-primary mb-4">
+        <div class="container">
+            <span class="navbar-brand mb-0 h1">👨‍🏫 Gestión Docente</span>
+            <div>
+                <a href="/asignar-clase" class="btn btn-light btn-sm me-2">⬅ Volver a Horarios</a>
+                <button onclick="cerrarSesion()" class="btn btn-dark btn-sm">Cerrar Sesión</button>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container">
+        <div class="card shadow">
+            <div class="card-header bg-white">
+                <h5 class="mb-0 text-primary">Plantilla de Maestros</h5>
+            </div>
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle mb-0 text-center">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Nombre</th>
+                                <th>Contrato</th>
+                                <th>Horas Máx</th>
+                                <th>Acciones</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tablaMaestros"></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal fade" id="modalGestion" tabindex="-1">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header bg-dark text-white">
+                    <h5 class="modal-title">Gestión de: <span id="nombreMaestroModal" class="text-warning fw-bold"></span></h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    
+                    <ul class="nav nav-tabs mb-3" id="tabGestion" role="tablist">
+                        <li class="nav-item">
+                            <button class="nav-link active" id="perfil-tab" data-bs-toggle="tab" data-bs-target="#perfil-pane" type="button" onclick="cargarMateriasPerfil()">
+                                📘 Materias Autorizadas
+                            </button>
+                        </li>
+                        <li class="nav-item">
+                            <button class="nav-link" id="horario-tab" data-bs-toggle="tab" data-bs-target="#horario-pane" type="button" onclick="cargarHorarioActual()">
+                                📅 Horario Actual
+                            </button>
+                        </li>
+                        <li class="nav-item">
+                            <button class="nav-link text-success fw-bold" id="vacantes-tab" data-bs-toggle="tab" data-bs-target="#vacantes-pane" type="button" onclick="cargarVacantes()">
+                                📢 Cubrir Vacantes
+                            </button>
+                        </li>
+                    </ul>
+
+                    <div class="tab-content" id="tabContenido">
+                        
+                        <div class="tab-pane fade show active" id="perfil-pane">
+                            <div class="alert alert-primary py-2 small">
+                                <i class="bi bi-info-circle"></i> Define qué materias <b>SABE</b> impartir este docente.
+                            </div>
+                            
+                            <form id="formAgregarMateria" class="row g-2 mb-3">
+                                <div class="col-9">
+                                    <select id="selectTodasMaterias" class="form-select form-select-sm" required>
+                                        <option value="" selected disabled>Cargando materias...</option>
+                                    </select>
+                                </div>
+                                <div class="col-3">
+                                    <button type="submit" class="btn btn-success btn-sm w-100">➕ Añadir</button>
+                                </div>
+                            </form>
+
+                            <ul class="list-group list-group-flush border-top" id="listaMateriasPerfil" style="max-height: 300px; overflow-y: auto;">
+                                </ul>
+                        </div>
+
+                        <div class="tab-pane fade" id="horario-pane">
+                            <div class="alert alert-info py-1 small">
+                                <i class="bi bi-calendar-check"></i> Clases asignadas actualmente.
+                            </div>
+                            <div class="table-responsive" style="max-height: 350px; overflow-y: auto;">
+                                <table class="table table-striped table-sm mb-0 align-middle">
+                                    <thead class="table-light sticky-top">
+                                        <tr><th>Días</th><th>Hora</th><th>Materia</th><th>Grupo</th><th>Acción</th></tr>
+                                    </thead>
+                                    <tbody id="listaClasesActuales"></tbody>
+                                </table>
+                            </div>
+                        </div>
+
+                        <div class="tab-pane fade" id="vacantes-pane">
+                            <div class="alert alert-success py-1 small mb-2">
+                                <i class="bi bi-plus-circle"></i> Clases disponibles (Sin Docente).
+                            </div>
+                            <div class="table-responsive" style="max-height: 350px; overflow-y: auto;">
+                                <table class="table table-hover table-sm mb-0 align-middle">
+                                    <thead class="table-light sticky-top">
+                                        <tr><th>Días</th><th>Hora</th><th>Materia</th><th>Grupo</th><th>Acción</th></tr>
+                                    </thead>
+                                    <tbody id="listaVacantes">
+                                        <tr><td colspan="5" class="text-center">Cargando...</td></tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+
+                    </div> </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Cerrar</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        const usuario = JSON.parse(localStorage.getItem('usuario'));
+        if (!usuario || (usuario.rol !== 'jefe' && usuario.rol !== 'subdirectivo')) window.location.href = '/';
+
+        const modalGestion = new bootstrap.Modal(document.getElementById('modalGestion'));
+        let idMaestroActual = null;
+
+        // 1. CARGAR MAESTROS (TABLA PRINCIPAL)
+        async function cargarMaestros() {
+            const res = await fetch('/api/maestros');
+            const lista = await res.json();
+            const tbody = document.getElementById('tablaMaestros');
+            tbody.innerHTML = '';
+
+            lista.forEach(m => {
+                if(m.rol === 'maestro') {
+                    tbody.innerHTML += `
+                        <tr>
+                            <td class="fw-bold text-start ps-5">${m.nombre}</td>
+                            <td>${m.tipo_contrato}</td>
+                            <td><span class="badge bg-secondary">${m.horas_max_semana} hrs</span></td>
+                            <td>
+                                <button onclick="abrirGestion(${m.id}, '${m.nombre}')" class="btn btn-dark btn-sm fw-bold">
+                                    ⚙️ Gestionar
+                                </button>
+                            </td>
+                        </tr>
+                    `;
+                }
+            });
+        }
+
+        // --- ABRIR MODAL UNIFICADO ---
+        async function abrirGestion(id, nombre) {
+            idMaestroActual = id;
+            document.getElementById('nombreMaestroModal').innerText = nombre;
+            
+            // Cargar lista de TODAS las materias para el select de "Añadir"
+            // (Lo hacemos aquí una sola vez para tenerlo listo)
+            const resMat = await fetch('/api/asignaturas');
+            const todas = await resMat.json();
+            const select = document.getElementById('selectTodasMaterias');
+            select.innerHTML = '<option value="" selected disabled>Seleccionar materia...</option>';
+            todas.forEach(m => select.innerHTML += `<option value="${m.id}">${m.nombre}</option>`);
+
+            // Resetear a la primera pestaña y cargar su contenido
+            const tabTrigger = new bootstrap.Tab(document.querySelector('#perfil-tab'));
+            tabTrigger.show();
+            cargarMateriasPerfil(); // Cargar datos iniciales de la pestaña 1
+            
+            modalGestion.show();
+        }
+
+        // --- PESTAÑA 1: PERFIL (MATERIAS AUTORIZADAS) ---
+        async function cargarMateriasPerfil() {
+            const res = await fetch(`/api/maestro/${idMaestroActual}/materias`);
+            const asignadas = await res.json();
+            const ul = document.getElementById('listaMateriasPerfil');
+            ul.innerHTML = '';
+
+            if(asignadas.length === 0) {
+                ul.innerHTML = '<li class="list-group-item text-center text-muted small">No tiene materias autorizadas.</li>';
+                return;
+            }
+
+            asignadas.forEach(m => {
+                ul.innerHTML += `
+                    <li class="list-group-item d-flex justify-content-between align-items-center">
+                        <span>${m.nombre} <small class="text-muted">(${m.creditos} cr)</small></span>
+                        <button onclick="quitarMateriaPerfil(${m.id_relacion})" class="btn btn-sm btn-outline-danger py-0 px-2" title="Quitar autorización">🗑️</button>
+                    </li>`;
+            });
+        }
+
+        // Agregar Materia al Perfil
+        document.getElementById('formAgregarMateria').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const idMateria = document.getElementById('selectTodasMaterias').value;
+            const res = await fetch('/api/maestro/asignar-materia', {
+                method: 'POST', headers: {'Content-Type':'application/json'},
+                body: JSON.stringify({ id_maestro: idMaestroActual, id_asignatura: idMateria })
+            });
+            const data = await res.json();
+            
+            if(res.ok) {
+                cargarMateriasPerfil(); 
+            } else {
+                alert("❌ " + data.mensaje);
+            }
+        });
+        
+        async function quitarMateriaPerfil(idRelacion) {
+            if(confirm("¿Quitar autorización de esta materia?")) {
+                await fetch(`/api/maestro/quitar-materia/${idRelacion}`, { method: 'DELETE' });
+                cargarMateriasPerfil();
+            }
+        }
+
+        // --- PESTAÑA 2: HORARIO ACTUAL ---
+        async function cargarHorarioActual() {
+            const res = await fetch(`/api/horario/maestro/${idMaestroActual}`);
+            const clases = await res.json();
+            const tbody = document.getElementById('listaClasesActuales');
+            tbody.innerHTML = '';
+
+            if(clases.length === 0) { tbody.innerHTML = '<tr><td colspan="5" class="text-center text-muted py-3">Sin clases asignadas.</td></tr>'; return; }
+
+            // Agrupamiento Visual
+            const unicos = {};
+            clases.forEach(c => {
+                const k = `${c.asignatura}-${c.grupo}-${c.hora_inicio}`;
+                if(!unicos[k]) unicos[k] = { data: c, dias: [c.dia_semana] };
+                else if(!unicos[k].dias.includes(c.dia_semana)) unicos[k].dias.push(c.dia_semana);
+            });
+
+            Object.values(unicos).forEach(obj => {
+                const c = obj.data;
+                const dias = obj.dias;
+                let textoDias = "";
+                
+                const ordenDias = { 'Lunes':1, 'Martes':2, 'Miercoles':3, 'Jueves':4, 'Viernes':5 };
+                dias.sort((a, b) => ordenDias[a] - ordenDias[b]);
+
+                if (dias.length === 5 && dias[0] === 'Lunes' && dias[4] === 'Viernes') textoDias = "<span class='fw-bold text-success'>Lunes - Viernes</span>";
+                else if (dias.length === 4 && dias.includes('Lunes') && dias.includes('Jueves')) textoDias = "<span class='fw-bold text-primary'>Lunes - Jueves</span>";
+                else textoDias = dias.join(', ');
+
+                const horaF = c.hora_inicio.substring(0,5);
+                
+                tbody.innerHTML += `<tr>
+                    <td class="fw-bold">${textoDias}</td>
+                    <td>${horaF}</td>
+                    <td>${c.asignatura}</td>
+                    <td><span class="badge bg-success">${c.grupo||'S/G'}</span></td>
+                    <td class="text-center">
+                        <button onclick="eliminarClase(${c.id})" class="btn btn-danger btn-sm py-0 px-2" title="Liberar clase">🗑️</button>
+                    </td>
+                </tr>`;
+            });
+        }
+
+        async function eliminarClase(id) {
+            if(confirm("¿Liberar clase? Se borrará del horario.")) {
+                await fetch(`/api/horario/eliminar/${id}`, {method:'DELETE'});
+                cargarHorarioActual();
+            }
+        }
+
+        // --- PESTAÑA 3: VACANTES ---
+        async function cargarVacantes() {
+            const res = await fetch('/api/horario/vacantes');
+            const vacantes = await res.json();
+            const tbody = document.getElementById('listaVacantes');
+            tbody.innerHTML = '';
+
+            if(vacantes.length === 0) { tbody.innerHTML = '<tr><td colspan="5" class="text-center text-muted">¡No hay vacantes!</td></tr>'; return; }
+
+            // Agrupamiento Visual de Vacantes
+            const gruposVis = {};
+            vacantes.forEach(v => {
+                const k = `${v.id_asignatura}-${v.id_grupo}-${v.hora_inicio}`;
+                if(!gruposVis[k]) gruposVis[k] = { data: v, dias: [v.dia_semana] };
+                else if(!gruposVis[k].dias.includes(v.dia_semana)) gruposVis[k].dias.push(v.dia_semana);
+            });
+
+            Object.values(gruposVis).forEach(obj => {
+                const v = obj.data;
+                const dias = obj.dias;
+                let textoDias = "";
+                
+                const ordenDias = { 'Lunes':1, 'Martes':2, 'Miercoles':3, 'Jueves':4, 'Viernes':5 };
+                dias.sort((a, b) => ordenDias[a] - ordenDias[b]);
+                
+                if (dias.length === 5 && dias[0] === 'Lunes' && dias[4] === 'Viernes') textoDias = "<span class='fw-bold text-success'>Lunes - Viernes</span>";
+                else textoDias = dias.join(', ');
+
+                const horaI = v.hora_inicio.substring(0,5);
+                let [h,m] = horaI.split(':');
+                const horaF = `${parseInt(h)+1}:00`; // Estimado visual
+
+                tbody.innerHTML += `<tr>
+                    <td class="fw-bold text-secondary">${textoDias}</td>
+                    <td>${horaI} - ${horaF}</td>
+                    <td>${v.asignatura}</td>
+                    <td><b>${v.grupo||'S/G'}</b></td>
+                    <td class="text-center">
+                        <button onclick="tomarVacante(${v.id_asignatura}, ${v.id_grupo})" class="btn btn-success btn-sm py-0 px-2 fw-bold">➕ Tomar</button>
+                    </td>
+                </tr>`;
+            });
+        }
+
+        async function tomarVacante(idAsig, idGrup) {
+            if(!confirm("¿Asignar esta vacante al docente actual?")) return;
+
+            const res = await fetch('/api/horario/asignar-vacante', {
+                method: 'PUT', headers: {'Content-Type':'application/json'},
+                body: JSON.stringify({ id_maestro: idMaestroActual, id_asignatura: idAsig, id_grupo: idGrup })
+            });
+            const data = await res.json();
+            
+            if(data.exito) {
+                alert(data.mensaje);
+                cargarVacantes();    // Refrescar vacantes (debe desaparecer)
+                cargarHorarioActual(); // Refrescar horario (debe aparecer ahí)
+            } else {
+                alert(data.mensaje); // Mostrar error de perfil o choque
+            }
+        }
+
+        function cerrarSesion() { localStorage.removeItem('usuario'); window.location.href='/'; }
+        cargarMaestros();
+    </script>
+</body>
+</html>

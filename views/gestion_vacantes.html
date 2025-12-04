@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Gestión de Vacantes</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+</head>
+<body class="bg-light">
+
+    <nav class="navbar navbar-dark bg-warning mb-4 shadow-sm">
+        <div class="container">
+            <span class="navbar-brand mb-0 h1 text-dark fw-bold">📢 Tablero de Vacantes</span>
+            <div>
+                <a href="/asignar-clase" class="btn btn-light btn-sm me-2">⬅ Volver</a>
+                <button onclick="cerrarSesion()" class="btn btn-dark btn-sm">Cerrar Sesión</button>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container">
+        <div class="card shadow border-0">
+            <div class="card-header bg-white py-3">
+                <h5 class="mb-0 text-warning fw-bold">Clases pendientes de asignación</h5>
+            </div>
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle mb-0 text-center">
+                        <thead class="table-warning">
+                            <tr>
+                                <th>Días</th>
+                                <th>Horario</th>
+                                <th>Materia</th>
+                                <th>Grupo</th>
+                                <th>Aula</th>
+                                <th>Acción</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tablaVacantes"></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal fade" id="modalAsignar" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header bg-dark text-white">
+                    <h5 class="modal-title">Asignar Docente</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="alert alert-primary py-2 small">
+                        Estás asignando <b>TODO EL BLOQUE</b> semanal de esta materia.
+                    </div>
+                    
+                    <p class="mb-1">Materia: <strong id="lblMateria"></strong></p>
+                    <p class="mb-3 small text-muted">Grupo: <span id="lblGrupo"></span> | Horario: <span id="lblHorario"></span></p>
+                    
+                    <form id="formAsignarVacante">
+                        <input type="hidden" id="idAsignatura">
+                        <input type="hidden" id="idGrupo">
+
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">Seleccione Docente</label>
+                            <select id="selectMaestro" class="form-select" required>
+                                <option value="" selected disabled>Cargando...</option>
+                            </select>
+                        </div>
+
+                        <button type="submit" class="btn btn-success w-100 fw-bold">💾 Guardar Asignación</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        const usuario = JSON.parse(localStorage.getItem('usuario'));
+        if (!usuario || usuario.rol !== 'jefe') window.location.href = '/';
+
+        const modalAsignar = new bootstrap.Modal(document.getElementById('modalAsignar'));
+        
+        // 1. CARGAR VACANTES (CON AGRUPAMIENTO INTELIGENTE)
+        async function cargarVacantes() {
+            const res = await fetch('/api/horario/vacantes');
+            const vacantes = await res.json();
+            const tbody = document.getElementById('tablaVacantes');
+            tbody.innerHTML = '';
+
+            if(vacantes.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="6" class="text-center text-muted py-4"><h5>✅ No hay vacantes pendientes.</h5></td></tr>';
+                return;
+            }
+
+            // --- LÓGICA DE AGRUPAMIENTO ---
+            const gruposVis = {};
+            
+            vacantes.forEach(v => {
+                // Agrupamos por Materia + Grupo + Hora Inicio
+                const clave = `${v.id_asignatura}-${v.id_grupo}-${v.hora_inicio}`;
+                if (!gruposVis[clave]) {
+                    gruposVis[clave] = { data: v, dias: [v.dia_semana] };
+                } else {
+                    if(!gruposVis[clave].dias.includes(v.dia_semana)) gruposVis[clave].dias.push(v.dia_semana);
+                }
+            });
+
+            // --- PINTAR FILAS UNIFICADAS ---
+            Object.values(gruposVis).forEach(obj => {
+                const v = obj.data;
+                const dias = obj.dias;
+                
+                // Formato de Días
+                const orden = { 'Lunes':1, 'Martes':2, 'Miercoles':3, 'Jueves':4, 'Viernes':5 };
+                dias.sort((a, b) => orden[a] - orden[b]);
+                
+                let textoDias = dias.join(', ');
+                if (dias.length === 5 && dias[0] === 'Lunes' && dias[4] === 'Viernes') textoDias = "<span class='fw-bold text-success'>Lunes - Viernes</span>";
+                else if (dias.length === 4) textoDias = "<span class='fw-bold text-primary'>Lunes - Jueves</span>";
+
+                // Formato de Hora
+                const inicio = v.hora_inicio.substring(0, 5);
+                const fin = v.hora_fin ? v.hora_fin.substring(0, 5) : "??:??";
+                const horarioF = `${inicio} - ${fin}`;
+
+                // Manejo de Nulos
+                const aula = v.aula || '<span class="text-muted small">Sin Aula</span>';
+                const grupo = v.grupo || 'S/G';
+
+                tbody.innerHTML += `
+                    <tr>
+                        <td>${textoDias}</td>
+                        <td class="fw-bold">${horarioF}</td>
+                        <td>${v.asignatura}</td>
+                        <td><span class="badge bg-dark">${grupo}</span></td>
+                        <td>${aula}</td>
+                        <td>
+                            <button onclick="abrirModal(${v.id_asignatura}, ${v.id_grupo}, '${v.asignatura}', '${grupo}', '${horarioF}')" 
+                                    class="btn btn-success btn-sm fw-bold px-3">
+                                ➕ Asignar
+                            </button>
+                        </td>
+                    </tr>`;
+            });
+        }
+
+        // 2. ABRIR MODAL
+        async function abrirModal(idAsig, idGrup, mat, grup, hor) {
+            document.getElementById('idAsignatura').value = idAsig;
+            document.getElementById('idGrupo').value = idGrup || 'null'; // Manejo de grupo nulo
+            
+            document.getElementById('lblMateria').innerText = mat;
+            document.getElementById('lblGrupo').innerText = grup;
+            document.getElementById('lblHorario').innerText = hor;
+
+            // Cargar Maestros
+            const res = await fetch('/api/maestros');
+            const lista = await res.json();
+            const select = document.getElementById('selectMaestro');
+            select.innerHTML = '<option value="" selected disabled>-- Seleccionar --</option>';
+            
+            lista.forEach(m => {
+                if(m.rol === 'maestro') select.innerHTML += `<option value="${m.id}">${m.nombre}</option>`;
+            });
+
+            modalAsignar.show();
+        }
+
+        // 3. GUARDAR (ENVIANDO PAQUETE COMPLETO)
+        document.getElementById('formAsignarVacante').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const idMaestro = document.getElementById('selectMaestro').value;
+            const idAsig = document.getElementById('idAsignatura').value;
+            let idGrup = document.getElementById('idGrupo').value;
+            
+            if(idGrup === 'null') idGrup = null;
+
+            const res = await fetch('/api/horario/asignar-vacante', {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ id_maestro: idMaestro, id_asignatura: idAsig, id_grupo: idGrup })
+            });
+            
+            const data = await res.json();
+            
+            if(data.exito) {
+                alert(data.mensaje);
+                modalAsignar.hide();
+                cargarVacantes();
+            } else {
+                alert("❌ " + data.mensaje);
+            }
+        });
+
+        function cerrarSesion() { localStorage.removeItem('usuario'); window.location.href='/'; }
+        cargarVacantes();
+    </script>
+</body>
+</html>
