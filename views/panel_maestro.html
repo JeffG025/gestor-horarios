@@ -167,47 +167,35 @@
     let qrGenerado = false; // Para no generar el mismo QR mil veces
     let urlDestinoGlobal = ""; 
 
-// 3. FUNCIÓN GENERAR QR (MÉTODO API INFALIBLE)
+// 3. FUNCIÓN GENERAR QR (VERSIÓN FIJA)
     function generarQR() {
-        const contenedor = document.getElementById('contenedorImagenQR');
-        const btnEnlace = document.getElementById('btnEnlaceManual');
+        const contenedor = document.getElementById('contenedorQR');
+        contenedor.innerHTML = "";
+
+        // AQUÍ ESTÁ EL CAMBIO: URL FIJA
+        const baseUrl = "https://paleoclimatologic-fredia-nondivulging.ngrok-free.dev"; 
         
-        // Mensaje de carga mientras llega la imagen
-        contenedor.innerHTML = "<div class='spinner-border text-primary' role='status'></div>";
-
-        // 1. TU URL DE NGROK (Asegúrate de que sea la actual de la pantalla negra)
-        // Ejemplo: "https://a1b2-c3d4.ngrok-free.app"
-        let baseUrl = "https://paleoclimatologic-fredia-nondivulging.ngrok-free.dev "; 
-
-        // Limpieza de seguridad
-        baseUrl = baseUrl.trim().replace(/\/$/, ""); 
-        if (!baseUrl.startsWith("http")) baseUrl = "https://" + baseUrl;
-
-        // 2. CONSTRUIR DATOS
         const id = usuario.id;
         const nombre = encodeURIComponent(usuario.nombre);
-        const urlFinal = `${baseUrl}/ver-horario-movil?id=${id}&nombre=${nombre}`;
+        
+        // Usamos baseUrl directamente
+        const urlDestino = `${baseUrl}/ver-horario-movil?id=${id}&nombre=${nombre}`;
 
-        console.log("Generando QR para:", urlFinal);
+        console.log("QR apunta a:", urlDestino);
 
-        // 3. ACTUALIZAR EL BOTÓN MANUAL (Por si el QR falla al escanear)
-        btnEnlace.href = urlFinal;
+        const urlImagenQR = `https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=${encodeURIComponent(urlDestino)}`;
 
-        // 4. CREAR LA IMAGEN USANDO LA API
-        // size=250x250: Tamaño bueno
-        // margin=10: Borde blanco vital para que la cámara enfoque
-        const apiQR = `https://api.qrserver.com/v1/create-qr-code/?size=250x250&margin=10&data=${encodeURIComponent(urlFinal)}`;
-
-        // Esperamos un poquito para que el modal se vea antes de cargar la imagen
         setTimeout(() => {
             contenedor.innerHTML = `
-                <img src="${apiQR}" 
-                     alt="QR Code" 
-                     class="img-fluid border" 
-                     style="border-radius: 8px; min-width: 200px; min-height: 200px;">
-                <p class="mt-2 small text-success fw-bold">✅ Listo para escanear</p>
+                <div class="d-flex flex-column align-items-center text-center">
+                    <img src="${urlImagenQR}" alt="QR Link" class="img-fluid border p-2 mb-2" style="max-width: 100%; border-radius: 8px;">
+                    <p class="mb-1 small text-success fw-bold">✅ Escanea para ver el Horario</p>
+                    <div class="alert alert-light p-1 w-100" style="font-size: 9px;">
+                        <a href="${urlDestino}" target="_blank" class="text-decoration-none text-muted">${urlDestino}</a>
+                    </div>
+                </div>
             `;
-        }, 500);
+        }, 300);
     }
     </script>
 </body>
