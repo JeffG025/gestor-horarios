@@ -2,8 +2,7 @@
 const db = require('../config/db'); // Conexión directa para consultas
 const maestroModel = require('../models/maestroModel');
 const logger = require('../models/loggerModel');
-const admin = require('../config/firebase'); 
-
+const { admin } = require('../config/firebase'); // ✅ Esto extrae 'admin' del objeto
 const maestroController = {
 
     // 1. REGISTRAR
