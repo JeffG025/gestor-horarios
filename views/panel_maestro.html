@@ -5,9 +5,6 @@
     <title>Mi Panel | Gestor de Horarios</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
-    <style>
-        .horario-pdf { background: white; padding: 20px; }
-    </style>
 </head>
 <body class="bg-light">
 
@@ -23,10 +20,10 @@
         <div class="d-flex justify-content-between align-items-center mb-4">
             <h3>Hola, <span id="lblNombre" class="text-primary">...</span></h3>
             <div>
-                <button onclick="generarQR()" class="btn btn-dark me-2" data-bs-toggle="modal" data-bs-target="#modalQR">
+                <button onclick="generarQRMaestro()" class="btn btn-dark me-2" data-bs-toggle="modal" data-bs-target="#modalQR">
                     📱 QR
                 </button>
-                <button onclick="descargarPDF()" class="btn btn-danger">
+                <button onclick="descargarHorarioPDF()" class="btn btn-danger">
                     📄 PDF
                 </button>
             </div>
@@ -48,12 +45,11 @@
             </div>
         </div>
         
-        <div class="card shadow" id="areaImprimible">
-            <div class="card-header bg-dark text-white text-center">
+        <div class="card shadow" id="areaImprimibleHorario"> <div class="card-header bg-dark text-white text-center">
                 <h5 class="mb-0">Horario de Clases</h5>
             </div>
             
-            <div id="encabezadoPDF" class="text-center p-3 d-none">
+            <div id="encabezadoPDFHorario" class="text-center p-3 d-none">
                 <h3>Horario Oficial</h3>
                 <h4 id="nombrePDF"></h4>
                 <hr>
@@ -84,7 +80,7 @@
                     <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
                 </div>
                 <div class="modal-body text-center p-3">
-                    <div id="contenedorQR"></div>
+                    <div id="contenedorQR" class="d-flex justify-content-center flex-column align-items-center"></div>
                 </div>
             </div>
         </div>
@@ -96,20 +92,19 @@
         if (!usuario || usuario.rol !== 'maestro') window.location.href = '/';
         
         document.getElementById('lblNombre').innerText = usuario.nombre;
+        document.getElementById('nombrePDF').innerText = usuario.nombre;
 
-        // --- TU URL DE RENDER FIJA ---
-        const RENDER_URL = "https://gestor-horarios-kvsp.onrender.com"; 
+        // --- TU URL FIJA (La misma que usas en grupos) ---
+        const NGROK_URL = "https://gestor-horarios-kvsp.onrender.com"; 
 
         // 1. CARGAR DATOS
         async function cargarDatos() {
-            // Cargar Horas
             const resHoras = await fetch(`/api/maestro/${usuario.id}/horas`);
             const datosHoras = await resHoras.json();
             document.getElementById('lblTotal').innerText = datosHoras.maximas;
             document.getElementById('lblOcupadas').innerText = datosHoras.ocupadas;
             document.getElementById('lblRestantes').innerText = datosHoras.restantes;
 
-            // Cargar Tabla
             generarTablaVacia();
             const resHorario = await fetch(`/api/horario/maestro/${usuario.id}`);
             const clases = await resHorario.json();
@@ -147,15 +142,11 @@
             document.getElementById('tablaCuerpo').innerHTML = html;
         }
 
-        // --- FUNCIÓN PDF (ADAPTADA DE TU LÓGICA) ---
-        function descargarPDF() {
-            const elem = document.getElementById('areaImprimible');
+        // --- FUNCIÓN PDF (ADAPTADA DE TU CÓDIGO) ---
+        function descargarHorarioPDF() {
+            const elem = document.getElementById('areaImprimibleHorario');
+            document.getElementById('encabezadoPDFHorario').classList.remove('d-none');
             
-            // Mostrar encabezado bonito temporalmente
-            const header = document.getElementById('encabezadoPDF');
-            document.getElementById('nombrePDF').innerText = usuario.nombre;
-            header.classList.remove('d-none');
-
             const opts = { 
                 margin: 10, 
                 filename: `Horario_${usuario.nombre}.pdf`, 
@@ -165,36 +156,32 @@
             };
             
             html2pdf().set(opts).from(elem).save().then(() => {
-                // Ocultar encabezado al terminar
-                header.classList.add('d-none');
+                document.getElementById('encabezadoPDFHorario').classList.add('d-none');
             });
         }
 
-        // --- FUNCIÓN QR (TU LÓGICA EXACTA) ---
-        function generarQR() {
-            const cont = document.getElementById('contenedorQR');
+        // --- FUNCIÓN QR (ADAPTADA DE TU CÓDIGO) ---
+        function mostrarQR(idContenedor, ruta) {
+            const cont = document.getElementById(idContenedor);
             cont.innerHTML = "<div class='spinner-border text-primary'></div>";
 
-            // Usamos el ID y Nombre del usuario logueado
-            const id = usuario.id;
             const nombreEnc = encodeURIComponent(usuario.nombre);
-            
-            // Ruta de maestro
-            const ruta = "/ver-horario-movil"; 
-            const urlFinal = `${RENDER_URL}${ruta}?id=${id}&nombre=${nombreEnc}`;
-            
-            // API
+            // Aquí usamos el ID del usuario logueado
+            const urlFinal = `${NGROK_URL}${ruta}?id=${usuario.id}&nombre=${nombreEnc}`;
             const apiQR = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&margin=10&data=${encodeURIComponent(urlFinal)}`;
 
             setTimeout(() => {
                 cont.innerHTML = `
                     <img src="${apiQR}" class="img-fluid border rounded mb-2">
-                    <p class="small fw-bold text-success">✅ Escanea para llevar</p>
-                    <div class="alert alert-light p-1 w-100 small text-truncate">
-                        <a href="${urlFinal}" target="_blank" class="text-decoration-none">${urlFinal}</a>
-                    </div>
+                    <p class="small fw-bold text-success">✅ Escanea para ver</p>
+                    <div class="small text-truncate w-100"><a href="${urlFinal}" target="_blank" class="text-decoration-none text-muted">Ver enlace</a></div>
                 `;
             }, 500);
+        }
+
+        // Wrapper para el botón
+        function generarQRMaestro() { 
+            mostrarQR('contenedorQR', '/ver-horario-movil'); 
         }
 
         function cerrarSesion() {
