@@ -51,7 +51,6 @@ const horarioController = {
         
         if (id_maestro === "0" || id_maestro === "") id_maestro = null;
         
-        // Convertir horas a minutos para comparaciones exactas
         const toMinutes = (timeStr) => {
             if(!timeStr) return 0;
             const [h, m] = timeStr.split(':').map(Number);
@@ -70,8 +69,7 @@ const horarioController = {
             if (creditos === 4) dias = ['Lunes', 'Martes', 'Miercoles', 'Jueves'];
             else if (creditos >= 5) dias = ['Lunes', 'Martes', 'Miercoles', 'Jueves', 'Viernes'];
 
-            // PASO 1: VERIFICAR CHOQUES (Antes de validar huecos)
-            // Esto arregla el mensaje de error confuso
+            // 1. VERIFICAR CHOQUES MANUALMENTE
             let condiciones = [], valoresQuery = [];
             dias.forEach(d => {
                 let cond = `(id_aula = ? OR id_grupo = ?`;
@@ -87,12 +85,10 @@ const horarioController = {
             
             db.query(sqlValidar, valoresQuery, (errVal, choques) => {
                 if (choques && choques.length > 0) {
-                    return res.status(400).json({ exito: false, mensaje: `❌ CHOQUE: Ese horario ya está ocupado.` });
+                    return res.status(400).json({ exito: false, mensaje: `❌ CHOQUE: Horario ya ocupado (Detectado por servidor).` });
                 }
 
-                // Si no hay choques, seguimos con las reglas del maestro
                 if (!id_maestro) {
-                    // Si es vacante, guardamos directo
                     guardarEnBD();
                 } else {
                     validarReglasMaestro();
@@ -108,37 +104,27 @@ const horarioController = {
                     const ocupadas = maestro.ocupadas;
                     const maxHoras = maestro.horas_max_semana;
                     
-                    // REGLA LÍMITE
                     if ((ocupadas + dias.length) > maxHoras) {
                         return res.status(400).json({ exito: false, mensaje: `⛔ LÍMITE: Docente limitado a ${maxHoras} horas.` });
                     }
 
-                    // REGLA HUECOS (Solo si NO es tiempo completo)
                     if (contrato !== 'tiempo_completo') {
-                        const diaCheck = dias[0]; // Validamos con el primer día del bloque
+                        const diaCheck = dias[0];
                         const sqlHuecos = "SELECT hora_inicio, hora_fin FROM horarios_asignados WHERE id_maestro = ? AND dia_semana = ? ORDER BY hora_inicio";
                         
                         db.query(sqlHuecos, [id_maestro, diaCheck], (errH, clasesDia) => {
                             if (clasesDia.length > 0) {
-                                // Construir línea de tiempo
-                                let timeline = clasesDia.map(c => ({
-                                    start: toMinutes(c.hora_inicio),
-                                    end: toMinutes(c.hora_fin)
-                                }));
-                                // Agregar la nueva clase
+                                let timeline = clasesDia.map(c => ({ start: toMinutes(c.hora_inicio), end: toMinutes(c.hora_fin) }));
                                 timeline.push({ start: toMinutes(hora_inicio), end: toMinutes(hora_fin) });
-                                // Ordenar
                                 timeline.sort((a, b) => a.start - b.start);
 
                                 let esContinuo = true;
                                 for (let i = 0; i < timeline.length - 1; i++) {
-                                    // Si el final de una NO es igual al inicio de la siguiente -> Hueco
                                     if (timeline[i].end < timeline[i+1].start) {
                                         esContinuo = false; 
                                         break;
                                     }
                                 }
-
                                 if (!esContinuo) {
                                     return res.status(400).json({ exito: false, mensaje: `⛔ HUECO: El contrato exige clases continuas.` });
                                 }
@@ -151,11 +137,30 @@ const horarioController = {
                 });
             }
 
+            // AQUI ESTA LA MAGIA: Manejo de errores SQL mejorado
             function guardarEnBD() {
                 let registros = dias.map(d => [id_aula, id_maestro, id_asignatura, id_grupo, d, hora_inicio, hora_fin, num_alumnos]);
                 const sqlInsert = `INSERT INTO horarios_asignados (id_aula, id_maestro, id_asignatura, id_grupo, dia_semana, hora_inicio, hora_fin, num_alumnos) VALUES ?`;
+                
                 db.query(sqlInsert, [registros], (errIns) => {
-                    if (errIns) return res.status(500).json({ exito: false, mensaje: "Error BD" });
+                    if (errIns) {
+                        console.error("Error SQL Detallado:", errIns); // Para ver en logs de Railway
+                        
+                        // Si MySQL dice "Duplicate entry" (Código 1062 o ER_DUP_ENTRY)
+                        if (errIns.code === 'ER_DUP_ENTRY' || errIns.errno === 1062) {
+                            return res.status(400).json({ 
+                                exito: false, 
+                                mensaje: "❌ CHOQUE: Ya existe una clase en ese horario (Detectado por BD)." 
+                            });
+                        }
+                        
+                        // Cualquier otro error
+                        return res.status(500).json({ 
+                            exito: false, 
+                            mensaje: `Error BD: ${errIns.sqlMessage || 'Desconocido'}` 
+                        });
+                    }
+                    
                     logger.registrar(`ASIGNACIÓN: ${nombreMat}`);
                     res.json({ exito: true, mensaje: "✅ Asignación guardada." });
                 });
@@ -163,6 +168,7 @@ const horarioController = {
         });
     },
 
+    // ... Copia las demás funciones IGUAL que antes (verHorarioAula, verHorarioMaestro, etc) ...
     verHorarioAula: (req, res) => {
         const sql = `SELECT h.*, m.nombre as maestro, a.nombre as asignatura, g.nombre as grupo FROM horarios_asignados h LEFT JOIN maestros m ON h.id_maestro = m.id LEFT JOIN asignaturas a ON h.id_asignatura = a.id LEFT JOIN grupos g ON h.id_grupo = g.id WHERE h.id_aula = ?`;
         db.query(sql, [req.params.id_aula], (err, r) => res.json(r));
