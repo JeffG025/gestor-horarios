@@ -164,9 +164,42 @@ const horarioController = {
         const sql = `SELECT h.*, au.nombre as nombre_aula, m.nombre as maestro, a.nombre as asignatura FROM horarios_asignados h LEFT JOIN aulas au ON h.id_aula = au.id LEFT JOIN maestros m ON h.id_maestro = m.id LEFT JOIN asignaturas a ON h.id_asignatura = a.id WHERE h.id_grupo = ?`;
         db.query(sql, [req.params.id_grupo], (err, r) => res.json(r));
     },
-    eliminarAsignacionPorId: (req, res) => {
+eliminarAsignacionPorId: (req, res) => {
         const id = req.params.id;
-        db.query("DELETE FROM horarios_asignados WHERE id = ?", [id], (e, r) => res.json({ exito: true }));
+
+        // PASO 1: Identificar qué materia es (Materia, Grupo, Maestro, Hora Inicio)
+        const sqlBuscar = "SELECT id_maestro, id_asignatura, id_grupo, hora_inicio FROM horarios_asignados WHERE id = ?";
+
+        db.query(sqlBuscar, [id], (err, results) => {
+            if (err || results.length === 0) {
+                return res.status(404).json({ exito: false, mensaje: "Clase no encontrada." });
+            }
+
+            const { id_maestro, id_asignatura, id_grupo, hora_inicio } = results[0];
+
+            // PASO 2: Borrar TODAS las coincidencias (Lunes, Martes, Miércoles...)
+            // Usamos <=> en id_grupo para manejar casos donde el grupo sea NULL (vacantes)
+            const sqlEliminar = `
+                DELETE FROM horarios_asignados 
+                WHERE id_maestro = ? 
+                AND id_asignatura = ? 
+                AND id_grupo <=> ? 
+                AND hora_inicio = ?
+            `;
+
+            db.query(sqlEliminar, [id_maestro, id_asignatura, id_grupo, hora_inicio], (errDel, resultDel) => {
+                if (errDel) {
+                    console.error(errDel);
+                    return res.status(500).json({ exito: false, mensaje: "Error al eliminar el bloque." });
+                }
+                
+                // Confirmamos éxito
+                res.json({ 
+                    exito: true, 
+                    mensaje: "✅ Se eliminó la materia de toda la semana." 
+                });
+            });
+        });
     },
     obtenerVacantes: (req, res) => {
         const sql = `SELECT MIN(h.id) as id, a.nombre as asignatura, g.nombre as grupo, h.id_asignatura, h.id_grupo, MIN(h.hora_inicio) as hora_inicio FROM horarios_asignados h LEFT JOIN asignaturas a ON h.id_asignatura = a.id LEFT JOIN grupos g ON h.id_grupo = g.id WHERE h.id_maestro IS NULL GROUP BY h.id_asignatura, h.id_grupo, h.hora_inicio`;
