@@ -167,53 +167,63 @@
     let qrGenerado = false; // Para no generar el mismo QR mil veces
     let urlDestinoGlobal = ""; 
 
-// 3. FUNCIÓN GENERAR QR (AUTOMÁTICA Y UNIVERSAL)
+// 3. FUNCIÓN GENERAR QR (ENLACE AUTOMÁTICO)
     function generarQR() {
         const contenedor = document.getElementById('contenedorQR');
         
         // Mensaje de carga
         contenedor.innerHTML = `
-            <div class="d-flex justify-content-center align-items-center" style="height:200px">
+            <div class="d-flex flex-column align-items-center justify-content-center py-3">
                 <div class="spinner-border text-primary" role="status"></div>
+                <span class="mt-2 small text-muted">Creando enlace...</span>
             </div>`;
 
-        // --- AQUÍ ESTÁ LA MAGIA ---
-        // window.location.origin obtiene automáticamente:
-        // "http://localhost:3000" si estás en tu PC
-        // "https://gestor-horarios-tu-nombre.onrender.com" si estás en la nube
-        const baseUrl = window.location.origin;
+        // --- MAGIA: DETECTAR URL AUTOMÁTICA ---
+        // Esto tomará "https://tu-app.onrender.com" o "http://localhost:3000" según donde estés
+        const baseUrl = "https://gestor-horarios-kvsp.onrender.com";
 
         // 1. Construir el enlace destino
         const id = usuario.id;
         const nombre = encodeURIComponent(usuario.nombre);
         const urlDestino = `${baseUrl}/ver-horario-movil?id=${id}&nombre=${nombre}`;
 
-        console.log("QR generado para:", urlDestino);
+        console.log("🔗 QR apuntando a:", urlDestino);
 
-        // 2. Generar la imagen del QR usando la API
+        // 2. Generar la imagen del QR usando la API (Más confiable)
+        // Usamos margin=2 para que el lector lo detecte mejor
         const urlImagenQR = `https://api.qrserver.com/v1/create-qr-code/?size=250x250&margin=10&data=${encodeURIComponent(urlDestino)}`;
 
         // 3. Mostrar la imagen
-        setTimeout(() => {
+        // Esperamos un poco para que la imagen cargue
+        const imagen = new Image();
+        imagen.src = urlImagenQR;
+        
+        imagen.onload = () => {
             contenedor.innerHTML = `
                 <div class="d-flex flex-column align-items-center text-center">
-                    <img src="${urlImagenQR}" 
-                         alt="QR de Horario" 
-                         class="img-fluid border shadow-sm mb-3" 
-                         style="max-width: 200px; border-radius: 8px;">
+                    <a href="${urlDestino}" target="_blank">
+                        <img src="${urlImagenQR}" 
+                             alt="QR de Horario" 
+                             class="img-fluid border shadow-sm mb-2" 
+                             style="max-width: 200px; border-radius: 8px;">
+                    </a>
                     
                     <p class="mb-1 small text-success fw-bold">
-                        ✅ ¡Listo para escanear!
+                        ✅ ¡Listo! Escanea para ver
                     </p>
                     
-                    <div class="alert alert-light p-1 w-100" style="font-size: 10px;">
-                        <a href="${urlDestino}" target="_blank" class="text-break text-decoration-none text-muted">
+                    <div class="d-grid w-100">
+                        <a href="${urlDestino}" target="_blank" class="btn btn-outline-primary btn-sm" style="font-size: 10px;">
                             Abrir enlace manualmente
                         </a>
                     </div>
                 </div>
             `;
-        }, 500);
+        };
+
+        imagen.onerror = () => {
+             contenedor.innerHTML = `<p class="text-danger small">Error al cargar el código QR.</p>`;
+        };
     }
     </script>
 </body>
