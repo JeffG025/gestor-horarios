@@ -167,35 +167,53 @@
     let qrGenerado = false; // Para no generar el mismo QR mil veces
     let urlDestinoGlobal = ""; 
 
-// 3. FUNCIÓN GENERAR QR (VERSIÓN FIJA)
+// 3. FUNCIÓN GENERAR QR (AUTOMÁTICA Y UNIVERSAL)
     function generarQR() {
         const contenedor = document.getElementById('contenedorQR');
-        contenedor.innerHTML = "";
-
-        // AQUÍ ESTÁ EL CAMBIO: URL FIJA
-        const baseUrl = "https://gestor-horarios-kvsp.onrender.com"; 
         
+        // Mensaje de carga
+        contenedor.innerHTML = `
+            <div class="d-flex justify-content-center align-items-center" style="height:200px">
+                <div class="spinner-border text-primary" role="status"></div>
+            </div>`;
+
+        // --- AQUÍ ESTÁ LA MAGIA ---
+        // window.location.origin obtiene automáticamente:
+        // "http://localhost:3000" si estás en tu PC
+        // "https://gestor-horarios-tu-nombre.onrender.com" si estás en la nube
+        const baseUrl = window.location.origin;
+
+        // 1. Construir el enlace destino
         const id = usuario.id;
         const nombre = encodeURIComponent(usuario.nombre);
-        
-        // Usamos baseUrl directamente
         const urlDestino = `${baseUrl}/ver-horario-movil?id=${id}&nombre=${nombre}`;
 
-        console.log("QR apunta a:", urlDestino);
+        console.log("QR generado para:", urlDestino);
 
-        const urlImagenQR = `https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=${encodeURIComponent(urlDestino)}`;
+        // 2. Generar la imagen del QR usando la API
+        const urlImagenQR = `https://api.qrserver.com/v1/create-qr-code/?size=250x250&margin=10&data=${encodeURIComponent(urlDestino)}`;
 
+        // 3. Mostrar la imagen
         setTimeout(() => {
             contenedor.innerHTML = `
                 <div class="d-flex flex-column align-items-center text-center">
-                    <img src="${urlImagenQR}" alt="QR Link" class="img-fluid border p-2 mb-2" style="max-width: 100%; border-radius: 8px;">
-                    <p class="mb-1 small text-success fw-bold">✅ Escanea para ver el Horario</p>
-                    <div class="alert alert-light p-1 w-100" style="font-size: 9px;">
-                        <a href="${urlDestino}" target="_blank" class="text-decoration-none text-muted">${urlDestino}</a>
+                    <img src="${urlImagenQR}" 
+                         alt="QR de Horario" 
+                         class="img-fluid border shadow-sm mb-3" 
+                         style="max-width: 200px; border-radius: 8px;">
+                    
+                    <p class="mb-1 small text-success fw-bold">
+                        ✅ ¡Listo para escanear!
+                    </p>
+                    
+                    <div class="alert alert-light p-1 w-100" style="font-size: 10px;">
+                        <a href="${urlDestino}" target="_blank" class="text-break text-decoration-none text-muted">
+                            Abrir enlace manualmente
+                        </a>
                     </div>
                 </div>
             `;
-        }, 300);
+        }, 500);
     }
     </script>
 </body>
