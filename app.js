@@ -26,10 +26,11 @@ const misRutas = require('./routes/rutas');
 app.use('/', misRutas); 
 
 // 6. Arrancar
-app.listen(PORT, () => {
+// 6. Arrancar
+// IMPORTANTE: Agregamos '0.0.0.0' para que Railway pueda ver tu servidor
+app.listen(PORT, '0.0.0.0', () => {
     console.log(`\n==================================================`);
-    console.log(`✅ Servidor corriendo en: http://localhost:${PORT}`);
+    console.log(`✅ Servidor corriendo en: http://0.0.0.0:${PORT}`);
     console.log(`📂 Sistema listo.`);
     console.log(`==================================================\n`);
 });
-// Versión final para producción
