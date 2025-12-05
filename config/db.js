@@ -1,30 +1,26 @@
-// config/db.js - MEJORADO
 const mysql = require('mysql2');
 const dotenv = require('dotenv');
 dotenv.config();
 
 const pool = mysql.createPool({
-    host: process.env.DB_HOST,
-    user: process.env.DB_USER,
-    password: process.env.DB_PASSWORD,
-    database: process.env.DB_NAME,
-    port: process.env.DB_PORT || 3306, // Puerto importante
+    host: process.env.MYSQLHOST || process.env.DB_HOST || 'localhost',
+    user: process.env.MYSQLUSER || process.env.DB_USER || 'root',
+    password: process.env.MYSQLPASSWORD || process.env.DB_PASSWORD || '',
+    database: process.env.MYSQLDATABASE || process.env.DB_NAME || 'gestor_horarios_db',
+    port: process.env.MYSQLPORT || process.env.DB_PORT || 3306,
     waitForConnections: true,
     connectionLimit: 10,
     queueLimit: 0,
-    // Esta línea es vital para bases de datos en la nube (SSL)
-    ssl: { rejectUnauthorized: false } 
+    // VITAL: Esto permite la conexión segura en la nube
+    ssl: { rejectUnauthorized: false }
 });
 
 pool.getConnection((err, connection) => {
     if (err) {
-        console.error('❌ ERROR FATAL DE CONEXIÓN A BD:');
-        console.error(err.code);
-        console.error(err.sqlMessage);
+        console.error('❌ Error conexión BD:', err.message);
     } else {
-        console.log('✅ Conexión exitosa a la Base de Datos Remota.');
+        console.log('✅ Conectado a la Base de Datos.');
         connection.release();
     }
 });
-
 module.exports = pool;
