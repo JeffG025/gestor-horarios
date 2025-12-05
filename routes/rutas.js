@@ -7,11 +7,20 @@ const authController = require('../controllers/authController');
 const maestroController = require('../controllers/maestroController');
 const grupoController = require('../controllers/grupoController');
 const usuarioController = require('../controllers/usuarioController');
+const path = require('path');
+const view = (archivo) => path.join(__dirname, '../views', archivo);
+
+router.get('/', (req, res) => res.sendFile(view('login.html')));
+router.get('/registro-maestro', (req, res) => res.sendFile(view('registro_maestro.html')));
+router.get('/panel-maestro', (req, res) => res.sendFile(view('panel_maestro.html')));
+router.get('/panel-subdirector', (req, res) => res.sendFile(view('panel_subdirector.html')));
+router.get('/gestion-materias', (req, res) => res.sendFile(view('gestion_materias.html')));
+router.get('/gestion-grupos', (req, res) => res.sendFile(view('gestion_grupos.html')));
+router.get('/gestion-maestros', (req, res) => res.sendFile(view('gestion_maestros.html')));
+router.get('/gestion-vacantes', (req, res) => res.sendFile(view('gestion_vacantes.html')));
+router.get('/asignar-clase', (req, res) => res.sendFile(view('asignar_clase.html')));
 
 // Ruta para ver el formulario (GET)
-router.get('/registro-maestro', (req, res) => {
-    res.sendFile('registro_maestro.html', { root: './views' });
-});
 
 // Ruta para recibir los datos del formulario (POST)
 router.post('/api/crear-maestro', maestroController.registrarMaestro);
@@ -31,9 +40,6 @@ router.get('/', (req, res) => {
 // Proceso de Login (API)
 router.post('/api/login', authController.login);
 
-router.get('/panel-maestro', (req, res) => {
-    res.sendFile('panel_maestro.html', { root: './views' });
-});
 
 // Obtener el horario pintado de un aula
 router.get('/api/horario/aula/:id_aula', horarioController.verHorarioAula);
@@ -46,9 +52,6 @@ router.delete('/api/grupos/:id', grupoController.eliminar);
 
 // --- RUTAS DEL SUBDIRECTOR ---
 // Vista del panel
-router.get('/panel-subdirector', (req, res) => {
-    res.sendFile('panel_subdirector.html', { root: './views' });
-});
 
 // API para obtener lista
 router.get('/api/usuarios', usuarioController.listarUsuarios);
@@ -60,20 +63,11 @@ router.get('/ver-horario-movil', (req, res) => {
     res.sendFile('ver_horario.html', { root: './views' });
 });
 
-// --- GESTIÓN DE MATERIAS (SOLO JEFE) ---
-router.get('/gestion-materias', (req, res) => {
-    res.sendFile('gestion_materias.html', { root: './views' });
-});
-
 router.get('/api/asignaturas', asignaturaController.listar); // Reutilizamos o creamos una específica
 router.post('/api/asignaturas', asignaturaController.crear);
 router.put('/api/asignaturas', asignaturaController.editar);
 router.delete('/api/asignaturas/:id', asignaturaController.eliminar);
 
-// --- GESTIÓN DE GRUPOS (SOLO JEFE) ---
-router.get('/gestion-grupos', (req, res) => {
-    res.sendFile('gestion_grupos.html', { root: './views' });
-});
 
 // APIs CRUD Grupos
 router.get('/api/grupos', grupoController.listar);
@@ -102,11 +96,6 @@ router.get('/ver-lista-movil', (req, res) => {
     res.sendFile('ver_lista.html', { root: './views' });
 });
 
-// --- GESTIÓN DE MAESTROS Y SUS MATERIAS ---
-router.get('/gestion-maestros', (req, res) => {
-    res.sendFile('gestion_maestros.html', { root: './views' });
-});
-
 router.get('/api/maestros', maestroController.listarMaestros);
 router.get('/api/maestro/:id/materias', maestroController.verMateriasAsignadas);
 router.post('/api/maestro/asignar-materia', maestroController.asignarMateria);
@@ -119,12 +108,5 @@ router.delete('/api/horario/eliminar/:id', horarioController.eliminarAsignacionP
 router.get('/api/horario/vacantes', horarioController.obtenerVacantes);
 router.put('/api/horario/asignar-vacante', horarioController.asignarDocenteAVacante);
 
-// Ruta para el panel de vacantes
-router.get('/gestion-vacantes', (req, res) => {
-    res.sendFile('gestion_vacantes.html', { root: './views' });
-});
 
 module.exports = router;
-router.get('/asignar-clase', (req, res) => {
-    res.sendFile('asignar_clase.html', { root: './views' });
-});

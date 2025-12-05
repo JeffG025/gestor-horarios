@@ -1,29 +1,29 @@
-// config/db.js
+// config/db.js - MEJORADO
 const mysql = require('mysql2');
 const dotenv = require('dotenv');
-
 dotenv.config();
 
-// USAMOS POOL (PISCINA) EN LUGAR DE CONEXIÓN ÚNICA
-// Esto maneja reconexiones automáticas si MySQL se cae
 const pool = mysql.createPool({
-    host: process.env.DB_HOST || 'localhost',
-    user: process.env.DB_USER || 'root',
-    password: process.env.DB_PASSWORD || '',
-    database: process.env.DB_NAME || 'gestor_horarios_db',
+    host: process.env.DB_HOST,
+    user: process.env.DB_USER,
+    password: process.env.DB_PASSWORD,
+    database: process.env.DB_NAME,
+    port: process.env.DB_PORT || 3306, // Puerto importante
     waitForConnections: true,
     connectionLimit: 10,
-    queueLimit: 0
+    queueLimit: 0,
+    // Esta línea es vital para bases de datos en la nube (SSL)
+    ssl: { rejectUnauthorized: false } 
 });
 
-// Probamos que el pool funcione pidiendo una conexión prestada
 pool.getConnection((err, connection) => {
     if (err) {
-        console.error('❌ Error fatal en Pool de MySQL:', err.code);
-        console.error('⚠️ Verifica que XAMPP esté encendido.');
+        console.error('❌ ERROR FATAL DE CONEXIÓN A BD:');
+        console.error(err.code);
+        console.error(err.sqlMessage);
     } else {
-        console.log('✅ Pool de MySQL listo y conectado.');
-        connection.release(); // Devolvemos la conexión a la piscina
+        console.log('✅ Conexión exitosa a la Base de Datos Remota.');
+        connection.release();
     }
 });
 
