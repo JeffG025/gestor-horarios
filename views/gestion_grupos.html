@@ -307,8 +307,8 @@
             html2pdf().set(opts).from(elem).save().then(()=>document.getElementById('encabezadoPDFHorario').classList.add('d-none'));
         }
 
-        // URL Ngrok Fija
-        const NGROK_URL = "https://gestor-horarios-production.up.railway.app/"; 
+// URL FIJA DE PRODUCCIÓN (RAILWAY)
+const NGROK_URL = "https://gestor-horarios-production.up.railway.app";
 
         function mostrarQR(idContenedor, idZona, ruta) {
             const zona = document.getElementById(idZona);
