@@ -30,7 +30,7 @@ const horarioController = {
         db.query(sql, [id_maestro], (e, r) => {
             if(e || r.length===0) return res.json({nombre:'-',maximas:0,ocupadas:0,restantes:0});
             
-            const max = r[0].horas_max_semana; // Usamos el valor real registrado (ej. 19 o 21)
+            const max = r[0].horas_max_semana;
             const contrato = r[0].tipo_contrato;
 
             db.query(sqlOc, [id_maestro], (e2, r2) => {
@@ -51,6 +51,14 @@ const horarioController = {
         
         if (id_maestro === "0" || id_maestro === "") id_maestro = null;
         
+        // Función auxiliar para convertir "08:00:00" a minutos (480)
+        // Esto evita errores de comparación de strings
+        const toMinutes = (timeStr) => {
+            if(!timeStr) return 0;
+            const [h, m] = timeStr.split(':').map(Number);
+            return h * 60 + m;
+        };
+
         let [h, m] = hora_inicio.split(':');
         let hNext = parseInt(h) + 1;
         const hora_fin = `${hNext.toString().padStart(2, '0')}:${m}:00`;
@@ -61,56 +69,70 @@ const horarioController = {
 
             let dias = [];
             if (creditos === 4) dias = ['Lunes', 'Martes', 'Miercoles', 'Jueves'];
-            else if (creditos === 5) dias = ['Lunes', 'Martes', 'Miercoles', 'Jueves', 'Viernes'];
-            // Ajustar lógica de días si es necesario
+            else if (creditos >= 5) dias = ['Lunes', 'Martes', 'Miercoles', 'Jueves', 'Viernes'];
 
             const validarMaestro = (callback) => {
                 if (!id_maestro) return callback();
 
-                // Traemos el contrato Y las horas máximas registradas de ese maestro
                 const sqlM = `SELECT tipo_contrato, horas_max_semana, (SELECT COUNT(*) FROM horarios_asignados WHERE id_maestro = ?) as ocupadas FROM maestros WHERE id = ?`;
                 
                 db.query(sqlM, [id_maestro, id_maestro], (errM, infoM) => {
                     const maestro = infoM[0];
                     const contrato = maestro.tipo_contrato;
                     const ocupadas = maestro.ocupadas;
-                    const maxHoras = maestro.horas_max_semana; // Ej: 19 o 22
+                    const maxHoras = maestro.horas_max_semana;
                     
-                    let permiteHuecos = false;
+                    let permiteHuecos = (contrato === 'tiempo_completo');
 
-                    // REGLA 1: Definir permisos por contrato
-                    if (contrato === 'tiempo_completo') {
-                        permiteHuecos = true; // SI huecos
-                    } else {
-                        // Asignatura o Medio Tiempo
-                        permiteHuecos = false; // NO huecos
-                    }
-
-                    // REGLA 2: Validar Límite de Horas (Usando el registrado)
+                    // REGLA 1: Límite de Horas
                     if ((ocupadas + dias.length) > maxHoras) {
                         return res.status(400).json({ 
                             exito: false, 
-                            mensaje: `⛔ LÍMITE EXCEDIDO: Este docente solo tiene ${maxHoras} horas contratadas.` 
+                            mensaje: `⛔ LÍMITE EXCEDIDO: Docente limitado a ${maxHoras} horas.` 
                         });
                     }
 
-                    // REGLA 3: Validar Huecos (Solo para Asignatura/Medio Tiempo)
+                    // REGLA 2: Validar Huecos (Lógica Mejorada "Timeline")
                     if (!permiteHuecos) {
                         const diaCheck = dias[0]; 
-                        const sqlHuecos = "SELECT hora_inicio, hora_fin FROM horarios_asignados WHERE id_maestro = ? AND dia_semana = ?";
+                        // Ordenamos por hora para analizar la línea de tiempo
+                        const sqlHuecos = "SELECT hora_inicio, hora_fin FROM horarios_asignados WHERE id_maestro = ? AND dia_semana = ? ORDER BY hora_inicio";
                         
                         db.query(sqlHuecos, [id_maestro, diaCheck], (errH, clasesDia) => {
                             if (clasesDia.length > 0) {
-                                let esContinuo = false;
-                                for (let c of clasesDia) {
-                                    // Verifica si la nueva clase pega antes o después de alguna existente
-                                    if (c.hora_fin === hora_inicio + ":00") esContinuo = true;
-                                    if (c.hora_inicio === hora_fin) esContinuo = true;
+                                // 1. Construir timeline actual
+                                let timeline = clasesDia.map(c => ({
+                                    start: toMinutes(c.hora_inicio),
+                                    end: toMinutes(c.hora_fin)
+                                }));
+
+                                // 2. Agregar la NUEVA clase propuesta
+                                timeline.push({
+                                    start: toMinutes(hora_inicio),
+                                    end: toMinutes(hora_fin)
+                                });
+
+                                // 3. Ordenar todo por hora de inicio
+                                timeline.sort((a, b) => a.start - b.start);
+
+                                // 4. Escanear buscando espacios vacíos
+                                let esContinuo = true;
+                                for (let i = 0; i < timeline.length - 1; i++) {
+                                    const finActual = timeline[i].end;
+                                    const inicioSiguiente = timeline[i+1].start;
+                                    
+                                    // Si donde acaba una NO empieza la otra, hay hueco
+                                    // (Ignoramos solapamientos/choques aquí, eso lo valida el paso siguiente)
+                                    if (finActual < inicioSiguiente) {
+                                        esContinuo = false;
+                                        break;
+                                    }
                                 }
+
                                 if (!esContinuo) {
                                     return res.status(400).json({ 
                                         exito: false, 
-                                        mensaje: `⛔ HUECO DETECTADO: El contrato de ${contrato} exige clases continuas.` 
+                                        mensaje: `⛔ HUECO DETECTADO: El horario debe ser continuo (sin horas libres intermedias).` 
                                     });
                                 }
                             }
@@ -123,7 +145,7 @@ const horarioController = {
             };
 
             validarMaestro(() => {
-                // Verificar Choques
+                // Verificar Choques (Aula, Grupo, Maestro ocupado en ese horario)
                 let condiciones = [], valoresQuery = [];
                 dias.forEach(d => {
                     let cond = `(id_aula = ? OR id_grupo = ?`;
@@ -137,7 +159,7 @@ const horarioController = {
 
                 const sqlValidar = `SELECT * FROM horarios_asignados WHERE ${condiciones.join(' OR ')}`;
                 db.query(sqlValidar, valoresQuery, (errVal, choques) => {
-                    if (choques && choques.length > 0) return res.status(400).json({ exito: false, mensaje: `❌ CHOQUE: Horario ocupado.` });
+                    if (choques && choques.length > 0) return res.status(400).json({ exito: false, mensaje: `❌ CHOQUE: Horario ocupado (Aula/Grupo/Docente).` });
 
                     let registros = dias.map(d => [id_aula, id_maestro, id_asignatura, id_grupo, d, hora_inicio, hora_fin, num_alumnos]);
                     const sqlInsert = `INSERT INTO horarios_asignados (id_aula, id_maestro, id_asignatura, id_grupo, dia_semana, hora_inicio, hora_fin, num_alumnos) VALUES ?`;
@@ -151,7 +173,6 @@ const horarioController = {
         });
     },
 
-    // ... RESTO DE FUNCIONES IGUALES (Copia verHorarioAula, verHorarioMaestro, etc. del código anterior) ...
     verHorarioAula: (req, res) => {
         const sql = `SELECT h.*, m.nombre as maestro, a.nombre as asignatura, g.nombre as grupo FROM horarios_asignados h LEFT JOIN maestros m ON h.id_maestro = m.id LEFT JOIN asignaturas a ON h.id_asignatura = a.id LEFT JOIN grupos g ON h.id_grupo = g.id WHERE h.id_aula = ?`;
         db.query(sql, [req.params.id_aula], (err, r) => res.json(r));
@@ -164,40 +185,16 @@ const horarioController = {
         const sql = `SELECT h.*, au.nombre as nombre_aula, m.nombre as maestro, a.nombre as asignatura FROM horarios_asignados h LEFT JOIN aulas au ON h.id_aula = au.id LEFT JOIN maestros m ON h.id_maestro = m.id LEFT JOIN asignaturas a ON h.id_asignatura = a.id WHERE h.id_grupo = ?`;
         db.query(sql, [req.params.id_grupo], (err, r) => res.json(r));
     },
-eliminarAsignacionPorId: (req, res) => {
+    eliminarAsignacionPorId: (req, res) => {
         const id = req.params.id;
-
-        // PASO 1: Identificar qué materia es (Materia, Grupo, Maestro, Hora Inicio)
         const sqlBuscar = "SELECT id_maestro, id_asignatura, id_grupo, hora_inicio FROM horarios_asignados WHERE id = ?";
-
         db.query(sqlBuscar, [id], (err, results) => {
-            if (err || results.length === 0) {
-                return res.status(404).json({ exito: false, mensaje: "Clase no encontrada." });
-            }
-
+            if (err || results.length === 0) return res.status(404).json({ exito: false, mensaje: "Clase no encontrada." });
             const { id_maestro, id_asignatura, id_grupo, hora_inicio } = results[0];
-
-            // PASO 2: Borrar TODAS las coincidencias (Lunes, Martes, Miércoles...)
-            // Usamos <=> en id_grupo para manejar casos donde el grupo sea NULL (vacantes)
-            const sqlEliminar = `
-                DELETE FROM horarios_asignados 
-                WHERE id_maestro = ? 
-                AND id_asignatura = ? 
-                AND id_grupo <=> ? 
-                AND hora_inicio = ?
-            `;
-
-            db.query(sqlEliminar, [id_maestro, id_asignatura, id_grupo, hora_inicio], (errDel, resultDel) => {
-                if (errDel) {
-                    console.error(errDel);
-                    return res.status(500).json({ exito: false, mensaje: "Error al eliminar el bloque." });
-                }
-                
-                // Confirmamos éxito
-                res.json({ 
-                    exito: true, 
-                    mensaje: "✅ Se eliminó la materia de toda la semana." 
-                });
+            const sqlEliminar = `DELETE FROM horarios_asignados WHERE id_maestro = ? AND id_asignatura = ? AND id_grupo <=> ? AND hora_inicio = ?`;
+            db.query(sqlEliminar, [id_maestro, id_asignatura, id_grupo, hora_inicio], (errDel) => {
+                if (errDel) return res.status(500).json({ exito: false, mensaje: "Error al eliminar." });
+                res.json({ exito: true, mensaje: "✅ Se eliminó la materia de toda la semana." });
             });
         });
     },
