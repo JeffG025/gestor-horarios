@@ -27,12 +27,28 @@
 
     <div class="container">
         <div class="card shadow border-0">
-            <div class="card-header bg-white d-flex justify-content-between align-items-center py-3">
-                <h5 class="mb-0 text-success fw-bold">Catálogo de Grupos</h5>
-                <button class="btn btn-success btn-sm fw-bold shadow-sm" onclick="abrirModalCrear()">
-                    ➕ Nuevo Grupo
-                </button>
-            </div>
+<div class="card-header bg-white d-flex justify-content-between align-items-center py-3">
+    <div class="d-flex align-items-center gap-3">
+        <h5 class="mb-0 text-success fw-bold">Catálogo de Grupos</h5>
+        
+        <select id="filtroSemestre" class="form-select form-select-sm" style="width: 200px;" onchange="aplicarFiltro()">
+            <option value="">🔍 Ver Todos</option>
+            <option value="1">1ro Semestre</option>
+            <option value="2">2do Semestre</option>
+            <option value="3">3ro Semestre</option>
+            <option value="4">4to Semestre</option>
+            <option value="5">5to Semestre</option>
+            <option value="6">6to Semestre</option>
+            <option value="7">7mo Semestre</option>
+            <option value="8">8vo Semestre</option>
+            <option value="9">9no Semestre</option>
+        </select>
+    </div>
+
+    <button class="btn btn-success btn-sm fw-bold shadow-sm" onclick="abrirModalCrear()">
+        ➕ Nuevo Grupo
+    </button>
+</div>
             <div class="card-body p-0">
                 <div class="table-responsive">
                     <table class="table table-hover align-middle mb-0 text-center">
@@ -164,29 +180,51 @@
         let modoEdicion = false;
         let idGrupoActual = null;
         let nombreGrupoActual = "";
+// Variable global para guardar los datos originales
+let todosLosGrupos = [];
 
-        // 1. CARGAR GRUPOS
-        async function cargarGrupos() {
-            const res = await fetch('/api/grupos');
-            const lista = await res.json();
-            const tbody = document.getElementById('tablaGrupos');
-            tbody.innerHTML = '';
+// 1. CARGAR GRUPOS (Ahora guarda en memoria)
+async function cargarGrupos() {
+    try {
+        const res = await fetch('/api/grupos');
+        todosLosGrupos = await res.json(); // Guardamos la lista completa
+        aplicarFiltro(); // Llamamos al renderizador
+    } catch (error) {
+        console.error("Error cargando grupos:", error);
+    }
+}
 
-            lista.forEach(g => {
-                tbody.innerHTML += `
-                    <tr>
-                        <td class="fw-bold">${g.nombre}</td>
-                        <td><span class="badge bg-secondary">${g.cantidad_alumnos}</span></td>
-                        <td><span class="badge bg-warning text-dark">Sem ${g.semestre}</span></td>
-                        <td>
-                            <button onclick="verAlumnos(${g.id}, '${g.nombre}')" class="btn btn-outline-primary btn-sm me-1" title="Ver Lista">👥</button>
-                            <button onclick="verHorario(${g.id}, '${g.nombre}')" class="btn btn-outline-dark btn-sm me-1" title="Ver Horario">👁️</button>
-                            <button onclick="abrirModalEditar(${g.id}, '${g.nombre}', ${g.cantidad_alumnos}, ${g.semestre})" class="btn btn-outline-secondary btn-sm me-1">✏️</button>
-                            <button onclick="eliminarGrupo(${g.id})" class="btn btn-outline-danger btn-sm">🗑️</button>
-                        </td>
-                    </tr>`;
-            });
-        }
+// 2. APLICAR FILTRO Y RENDERIZAR
+function aplicarFiltro() {
+    const semestreSeleccionado = document.getElementById('filtroSemestre').value;
+    const tbody = document.getElementById('tablaGrupos');
+    tbody.innerHTML = '';
+
+    // Filtramos: Si no hay selección, muestra todo. Si hay, filtra por coincidencia.
+    const gruposFiltrados = semestreSeleccionado 
+        ? todosLosGrupos.filter(g => g.semestre == semestreSeleccionado)
+        : todosLosGrupos;
+
+    if (gruposFiltrados.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="4" class="text-muted py-3">No hay grupos en este semestre</td></tr>';
+        return;
+    }
+
+    gruposFiltrados.forEach(g => {
+        tbody.innerHTML += `
+            <tr>
+                <td class="fw-bold">${g.nombre}</td>
+                <td><span class="badge bg-secondary">${g.cantidad_alumnos}</span></td>
+                <td><span class="badge bg-warning text-dark">Sem ${g.semestre}</span></td>
+                <td>
+                    <button onclick="verAlumnos(${g.id}, '${g.nombre}')" class="btn btn-outline-primary btn-sm me-1" title="Ver Lista">👥</button>
+                    <button onclick="verHorario(${g.id}, '${g.nombre}')" class="btn btn-outline-dark btn-sm me-1" title="Ver Horario">👁️</button>
+                    <button onclick="abrirModalEditar(${g.id}, '${g.nombre}', ${g.cantidad_alumnos}, ${g.semestre})" class="btn btn-outline-secondary btn-sm me-1">✏️</button>
+                    <button onclick="eliminarGrupo(${g.id})" class="btn btn-outline-danger btn-sm">🗑️</button>
+                </td>
+            </tr>`;
+    });
+}
 
         // --- VER HORARIO (CON DATOS COMPLETOS) ---
         async function verHorario(id, nombre) {
