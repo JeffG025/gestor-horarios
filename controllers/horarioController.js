@@ -150,7 +150,7 @@ const horarioController = {
                                             // Ejemplo: Si tenemos 7 y 9, (9 != 7+1), hay hueco de 8.
                                             return res.status(400).json({ 
                                                 exito: false, 
-                                                mensaje: `⛔ REGLA DE CONTRATO: Los maestros de '${contrato}' NO pueden tener horas libres intermedias.\n\nConflicto el día ${dia}.` 
+                                                mensaje: `⛔ REGLA DE CONTRATO: Los maestros de '${contrato}' NO pueden tener horas libres intermedias.` 
                                             });
                                         }
                                     }
