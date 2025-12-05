@@ -1,27 +1,35 @@
-// controllers/maestroController.js
-const db = require('../config/db'); // Conexión directa para consultas
+const db = require('../config/db'); 
 const maestroModel = require('../models/maestroModel');
 const logger = require('../models/loggerModel');
-const { admin } = require('../config/firebase'); // ✅ Esto extrae 'admin' del objeto
+
 const maestroController = {
 
-    // 1. REGISTRAR
-    registrarMaestro: async (req, res) => {
+    // 1. REGISTRAR (Versión SOLO MySQL)
+    registrarMaestro: (req, res) => {
         const { nombre, email, password, tipo_contrato, horas, rol } = req.body;
-        try {
-            // Firebase
-            const usuarioFirebase = await admin.auth().createUser({
-                email: email, password: password, displayName: nombre
-            });
-            // MySQL
-            const datosMySQL = { nombre, email, password, tipo_contrato, horas, rol: rol || 'maestro' };
-            
-            maestroModel.crear(datosMySQL, (err, result) => {
-                if (err) return res.status(500).send("Error BD");
-                logger.registrar(`NUEVO USUARIO: ${nombre}`);
-                res.json({ exito: true });
-            });
-        } catch (error) { res.status(500).send(error.message); }
+        
+        // Validación básica
+        if (!nombre || !email || !password) {
+            return res.status(400).json({ exito: false, mensaje: "Faltan datos." });
+        }
+
+        const datosMySQL = { 
+            nombre, 
+            email, 
+            password, // En un futuro podrías encriptarla aquí
+            tipo_contrato, 
+            horas, 
+            rol: rol || 'maestro' 
+        };
+        
+        maestroModel.crear(datosMySQL, (err, result) => {
+            if (err) {
+                console.error("Error MySQL:", err);
+                return res.status(500).json({ exito: false, mensaje: "Error al guardar en BD" });
+            }
+            logger.registrar(`NUEVO USUARIO: ${nombre}`);
+            res.json({ exito: true, mensaje: "Usuario creado exitosamente" });
+        });
     },
 
     // 2. LISTAR

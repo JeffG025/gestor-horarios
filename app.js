@@ -9,7 +9,6 @@ dotenv.config();
 
 // 2. Conexiones a Base de Datos
 require('./config/db');       // MySQL
-require('./config/firebase'); // Firebase
 
 // 3. Configurar Servidor
 const app = express();
