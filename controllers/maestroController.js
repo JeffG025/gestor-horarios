@@ -5,13 +5,29 @@ const logger = require('../models/loggerModel');
 
 const maestroController = {
 
-    // 1. REGISTRAR (SOLO MYSQL - SIN FIREBASE)
+    // 1. REGISTRAR (Con Validación de Rangos Estricta)
     registrarMaestro: (req, res) => {
         const { nombre, email, password, tipo_contrato, horas, rol } = req.body;
         
-        // Validación básica
+        // A. Validar Datos Básicos
         if (!nombre || !email || !password) {
-            return res.status(400).json({ exito: false, mensaje: "Faltan datos." });
+            return res.status(400).json({ exito: false, mensaje: "Faltan datos obligatorios." });
+        }
+
+        // B. Validar Rango de Horas según Contrato (TU SOLICITUD)
+        const h = parseInt(horas);
+        if (isNaN(h)) return res.status(400).json({ exito: false, mensaje: "Las horas deben ser un número." });
+
+        if (tipo_contrato === 'tiempo_completo') {
+            // Tiempo Completo: 20 a 22 horas
+            if (h < 20 || h > 22) {
+                return res.status(400).json({ exito: false, mensaje: "⛔ Tiempo Completo debe tener entre 20 y 22 horas." });
+            }
+        } else {
+            // Asignatura o Medio Tiempo: 18 a 20 horas
+            if (h < 18 || h > 20) {
+                return res.status(400).json({ exito: false, mensaje: "⛔ Asignatura/Medio Tiempo debe tener entre 18 y 20 horas." });
+            }
         }
 
         const datosMySQL = { 
@@ -19,17 +35,17 @@ const maestroController = {
             email, 
             password, 
             tipo_contrato, 
-            horas, 
+            horas: h, 
             rol: rol || 'maestro' 
         };
         
         maestroModel.crear(datosMySQL, (err, result) => {
             if (err) {
                 console.error("Error MySQL:", err);
-                return res.status(500).json({ exito: false, mensaje: "Error al guardar en BD (¿Correo duplicado?)" });
+                return res.status(500).json({ exito: false, mensaje: "Error al guardar (¿Correo duplicado?)" });
             }
-            logger.registrar(`NUEVO USUARIO: ${nombre} (${tipo_contrato})`);
-            res.json({ exito: true, mensaje: "Usuario creado exitosamente" });
+            logger.registrar(`NUEVO USUARIO: ${nombre} (${tipo_contrato} - ${h}hrs)`);
+            res.json({ exito: true, mensaje: "Usuario creado correctamente." });
         });
     },
 
@@ -56,7 +72,7 @@ const maestroController = {
         });
     },
 
-    // 4. ASIGNAR MATERIA (PERFIL)
+    // 4. ASIGNAR MATERIA
     asignarMateria: (req, res) => {
         const { id_maestro, id_asignatura } = req.body;
         const sqlCheck = "SELECT * FROM maestros_asignaturas WHERE id_maestro = ? AND id_asignatura = ?";
