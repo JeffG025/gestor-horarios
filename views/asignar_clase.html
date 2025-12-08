@@ -431,7 +431,6 @@ const pintarTabla = async (tipo, id) => {
                         // --- CONFIGURACIÓN COMÚN DE INTERACTIVIDAD ---
                         // Ahora se aplica a TODAS las tablas
                         celda.style.cursor = "pointer";
-                        celda.title = "Clic para eliminar bloque completo";
                         celda.setAttribute('onclick', `borrar(${c.id_aula}, '${c.dia_semana}', '${c.hora_inicio}')`);
                         // Agregamos la clase que hace el efecto rojo al pasar el mouse
                         celda.classList.add('celda-borrable');
