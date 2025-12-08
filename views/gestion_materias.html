@@ -31,8 +31,8 @@
                         <thead class="table-light">
                             <tr>
                                 <th>Nombre</th>
-                                <th>Horas Semanales</th>
-                                <th>Créditos</th>
+                                <th>Semestre</th>
+                                <th>Créditos / Horas</th>
                                 <th>Acciones</th>
                             </tr>
                         </thead>
@@ -51,33 +51,48 @@
                     <h5 class="modal-title" id="tituloModal">Nueva Materia</h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                 </div>
-<div class="modal-body">
+                <div class="modal-body">
                     <form id="formMateria">
-                        <input type="hidden" id="idMateria"> <div class="mb-3">
-                            <label class="form-label">Nombre de la Asignatura</label>
+                        <input type="hidden" id="idMateria"> 
+                        
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">Nombre de la Asignatura</label>
                             <input type="text" id="nombre" class="form-control" required placeholder="Ej: Cálculo Integral">
                         </div>
                         
-                        <div class="mb-3">
-                            <label class="form-label">Número de Créditos (Valor Curricular)</label>
-                            <input type="number" id="creditos" class="form-control" required min="1" max="10" placeholder="Ej: 5">
-                            <div class="form-text">Las horas semanales serán iguales a los créditos.</div>
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label fw-bold">Semestre</label>
+                                <select id="semestre" class="form-select" required>
+                                    <option value="1">1ro Semestre</option>
+                                    <option value="2">2do Semestre</option>
+                                    <option value="3">3ro Semestre</option>
+                                    <option value="4">4to Semestre</option>
+                                    <option value="5">5to Semestre</option>
+                                    <option value="6">6to Semestre</option>
+                                    <option value="7">7mo Semestre</option>
+                                    <option value="8">8vo Semestre</option>
+                                    <option value="9">9no Semestre</option>
+                                </select>
+                            </div>
+
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label fw-bold">Créditos</label>
+                                <input type="number" id="creditos" class="form-control" required min="1" max="10" placeholder="Ej: 5">
+                            </div>
                         </div>
                         
-<div class="alert alert-info small p-2">
-    <strong>📋 Reglas de Horario Automático:</strong>
-    <ul class="mb-0 ps-3" style="font-size: 0.85rem;">
-        <li><strong>4 Créditos:</strong> Lun-Jue (1 hr).</li>
-        <li><strong>5 Créditos:</strong> Lun-Vie (1 hr).</li>
-        <li><strong>6 Créditos:</strong> Lun-Jue (1 hr) y Vie (2 hrs).</li>
-        <li><strong>7 Créditos:</strong> Lun-Mié (1 hr) y Jue-Vie (2 hrs).</li>
-        <li><strong>8 Créditos:</strong> Lun-Mar (1 hr) y Mie-Vie (2 hrs).</li>
-        <li><strong>9 Créditos:</strong> Lun-Mar (1 hr) y Mie-Vie (2 hrs).</li>
-        <li><strong>10 Créditos:</strong> Lun-Vie (2 hrs diarias).</li>
-    </ul>
-</div>
+                        <div class="alert alert-info small p-2">
+                            <strong>📋 Reglas de Horario Automático:</strong>
+                            <ul class="mb-0 ps-3" style="font-size: 0.85rem;">
+                                <li><strong>4 Créditos:</strong> Lun-Jue (1 hr).</li>
+                                <li><strong>5 Créditos:</strong> Lun-Vie (1 hr).</li>
+                                <li><strong>6 Créditos:</strong> Lun-Jue (1 hr) y Vie (2 hrs).</li>
+                                <li><strong>10 Créditos:</strong> Lun-Vie (2 hrs diarias).</li>
+                            </ul>
+                        </div>
 
-                        <button type="submit" class="btn btn-success w-100">Guardar Materia</button>
+                        <button type="submit" class="btn btn-success w-100 fw-bold">Guardar Materia</button>
                     </form>
                 </div>
             </div>
@@ -88,7 +103,7 @@
     <script>
         // 1. SEGURIDAD
         const usuario = JSON.parse(localStorage.getItem('usuario'));
-        if (!usuario || usuario.rol !== 'jefe') {
+        if (!usuario || (usuario.rol !== 'jefe' && usuario.rol !== 'subdirectivo')) {
             window.location.href = '/';
         }
 
@@ -97,85 +112,99 @@
 
         // 2. CARGAR MATERIAS
         async function cargarMaterias() {
-            const res = await fetch('/api/asignaturas'); // Usamos la ruta que ya existía o la nueva
-            const lista = await res.json();
-            // Si la ruta devolvió un objeto {maestros, aulas...} (la vieja), ajustamos.
-            // Pero como creamos una ruta /api/asignaturas específica en el controller nuevo, debe devolver array directo.
-            // Si da error, verifica que en rutas.js '/api/asignaturas' apunte a asignaturaController.listar
-            
-            const tbody = document.getElementById('tablaMaterias');
-            tbody.innerHTML = '';
+            try {
+                // Asegúrate que esta ruta coincide con tu backend (asignaturaController.listar)
+                const res = await fetch('/api/asignaturas'); 
+                const lista = await res.json();
+                
+                const tbody = document.getElementById('tablaMaterias');
+                tbody.innerHTML = '';
 
-            lista.forEach(m => {
-                tbody.innerHTML += `
-                    <tr>
-                        <td class="fw-bold text-start ps-4">${m.nombre}</td>
-                        <td><span class="badge bg-info text-dark">${m.creditos}</span></td>
-                        <td>
-                            <button onclick="abrirModalEditar(${m.id}, '${m.nombre}', ${m.creditos})" class="btn btn-outline-primary btn-sm me-1">✏️</button>
-                            <button onclick="eliminarMateria(${m.id})" class="btn btn-outline-danger btn-sm">🗑️</button>
-                        </td>
-                    </tr>
-                `;
-            });
+                lista.forEach(m => {
+                    tbody.innerHTML += `
+                        <tr>
+                            <td class="fw-bold text-start ps-4">${m.nombre}</td>
+                            <td><span class="badge bg-warning text-dark">Sem ${m.semestre || '?'}</span></td>
+                            <td><span class="badge bg-info text-dark">${m.creditos} Cr</span></td>
+                            <td>
+                                <button onclick="abrirModalEditar(${m.id}, '${m.nombre}', ${m.creditos}, ${m.semestre})" class="btn btn-outline-primary btn-sm me-1">✏️</button>
+                                <button onclick="eliminarMateria(${m.id})" class="btn btn-outline-danger btn-sm">🗑️</button>
+                            </td>
+                        </tr>
+                    `;
+                });
+            } catch (error) {
+                console.error("Error cargando materias:", error);
+            }
         }
 
-        // 3. FUNCIONES DEL MODAL
+        // 3. ABRIR MODAL CREAR
         function abrirModalCrear() {
             modoEdicion = false;
             document.getElementById('tituloModal').innerText = "Nueva Materia";
             document.getElementById('formMateria').reset();
             document.getElementById('idMateria').value = '';
+            document.getElementById('semestre').value = '1'; // Default
             modal.show();
         }
 
-        function abrirModalEditar(id, nombre, horas, creditos) {
+        // 4. ABRIR MODAL EDITAR (Ahora recibe semestre)
+        function abrirModalEditar(id, nombre, creditos, semestre) {
             modoEdicion = true;
             document.getElementById('tituloModal').innerText = "Editar Materia";
             document.getElementById('idMateria').value = id;
             document.getElementById('nombre').value = nombre;
-            // document.getElementById('horas').value = horas; // <-- ESTO YA NO EXISTE
             document.getElementById('creditos').value = creditos;
+            document.getElementById('semestre').value = semestre; // Carga el semestre
             modal.show();
         }
 
-        // GUARDAR (Actualizado)
+        // 5. GUARDAR (Crear o Editar)
         document.getElementById('formMateria').addEventListener('submit', async (e) => {
             e.preventDefault();
             
-            const valCreditos = document.getElementById('creditos').value;
+            const id = document.getElementById('idMateria').value;
+            const nombre = document.getElementById('nombre').value;
+            const creditos = document.getElementById('creditos').value;
+            const semestre = document.getElementById('semestre').value;
 
-            const datos = {
-                id: document.getElementById('idMateria').value,
-                nombre: document.getElementById('nombre').value,
-                creditos: valCreditos,
-                horas: valCreditos // <--- TRUCO: Las horas serán igual a los créditos
-            };
+            const datos = { id, nombre, creditos, semestre };
 
-            const url = '/api/asignaturas';
-            const metodo = modoEdicion ? 'PUT' : 'POST';
+            // Usamos las rutas específicas que definimos en el paso anterior para asegurar compatibilidad
+            const url = modoEdicion ? '/api/editar-materia' : '/api/crear-materia';
 
-            const res = await fetch(url, {
-                method: metodo,
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(datos)
-            });
+            try {
+                const res = await fetch(url, {
+                    method: 'POST', // Usamos POST para ambos según tu controlador anterior
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(datos)
+                });
 
-            if(res.ok) {
-                modal.hide();
-                cargarMaterias();
-            } else {
-                alert("Error al guardar");
+                const respuesta = await res.json();
+
+                if(respuesta.exito) {
+                    modal.hide();
+                    cargarMaterias();
+                } else {
+                    alert("Error: " + respuesta.mensaje);
+                }
+            } catch (error) {
+                console.error(error);
+                alert("Error de conexión al guardar.");
             }
         });
 
-        // 5. ELIMINAR
+        // 6. ELIMINAR
         async function eliminarMateria(id) {
             if(!confirm("⚠️ ¿Eliminar materia? Se borrarán todos los horarios asignados a ella.")) return;
             
+            // Ajusta esta ruta si tu backend usa /api/eliminar-materia en lugar de DELETE
+            // Si usas el controlador estándar REST: `/api/asignaturas/${id}`
+            // Si usas el controlador personalizado: `/api/eliminar-materia/${id}`
             const res = await fetch(`/api/asignaturas/${id}`, { method: 'DELETE' });
+            
             if(res.ok) cargarMaterias();
-            else alert("Error al eliminar");
+            else alert("Error al eliminar (quizás tiene horarios asignados).");
         }
 
         function cerrarSesion() {
@@ -183,6 +212,7 @@
             window.location.href = '/';
         }
 
+        // Iniciar
         cargarMaterias();
     </script>
 </body>

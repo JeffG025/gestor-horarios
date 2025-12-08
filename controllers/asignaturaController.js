@@ -1,53 +1,48 @@
 // controllers/asignaturaController.js
 const db = require('../config/db');
-const logger = require('../models/loggerModel');
 
 const asignaturaController = {
-
-    // 1. LISTAR TODAS
+    
+    // 1. LISTAR (Ordenamos por Semestre y luego por Nombre)
     listar: (req, res) => {
-        db.query("SELECT * FROM asignaturas ORDER BY nombre", (err, resultados) => {
-            if (err) return res.status(500).json({ error: "Error de BD" });
+        db.query("SELECT * FROM asignaturas ORDER BY semestre ASC, nombre ASC", (err, resultados) => {
+            if (err) return res.status(500).json(err);
             res.json(resultados);
         });
     },
 
-    // 2. CREAR NUEVA
+    // 2. CREAR (Ahora recibe 'semestre')
     crear: (req, res) => {
-        const { nombre, horas, creditos } = req.body;
-        const sql = "INSERT INTO asignaturas (nombre, horas_semana, creditos) VALUES (?, ?, ?)";
+        const { nombre, creditos, semestre } = req.body;
         
-        db.query(sql, [nombre, horas, creditos], (err, result) => {
-            if (err) return res.status(500).send("Error al guardar");
-            
-            logger.registrar(`MATERIA CREADA: ${nombre} (${creditos} créditos)`);
-            res.json({ exito: true, mensaje: "Materia creada correctamente" });
+        if (!nombre || !creditos || !semestre) {
+            return res.status(400).json({ exito: false, mensaje: "Faltan datos." });
+        }
+
+        const sql = "INSERT INTO asignaturas (nombre, creditos, semestre) VALUES (?, ?, ?)";
+        db.query(sql, [nombre, creditos, semestre], (err, result) => {
+            if (err) return res.status(500).json({ exito: false, mensaje: "Error BD" });
+            res.json({ exito: true, mensaje: "Materia creada." });
         });
     },
 
-    // 3. EDITAR EXISTENTE
+    // 3. EDITAR (Ahora actualiza 'semestre')
     editar: (req, res) => {
-        const { id, nombre, horas, creditos } = req.body;
-        const sql = "UPDATE asignaturas SET nombre = ?, horas_semana = ?, creditos = ? WHERE id = ?";
-        
-        db.query(sql, [nombre, horas, creditos, id], (err, result) => {
-            if (err) return res.status(500).send("Error al actualizar");
-            
-            logger.registrar(`MATERIA EDITADA: ID ${id} -> ${nombre}`);
-            res.json({ exito: true, mensaje: "Materia actualizada correctamente" });
+        const { id, nombre, creditos, semestre } = req.body;
+
+        const sql = "UPDATE asignaturas SET nombre = ?, creditos = ?, semestre = ? WHERE id = ?";
+        db.query(sql, [nombre, creditos, semestre, id], (err, result) => {
+            if (err) return res.status(500).json({ exito: false, mensaje: "Error BD" });
+            res.json({ exito: true, mensaje: "Materia actualizada." });
         });
     },
 
-    // 4. BORRAR
+    // 4. ELIMINAR
     eliminar: (req, res) => {
         const id = req.params.id;
-        const sql = "DELETE FROM asignaturas WHERE id = ?";
-        
-        db.query(sql, [id], (err, result) => {
-            if (err) return res.status(500).send("Error al eliminar");
-            
-            logger.registrar(`MATERIA ELIMINADA: ID ${id}`);
-            res.json({ exito: true, mensaje: "Materia eliminada." });
+        db.query("DELETE FROM asignaturas WHERE id = ?", [id], (err, result) => {
+            if (err) return res.status(500).json({ exito: false, mensaje: "No se puede eliminar (quizás ya tiene horarios asignados)." });
+            res.json({ exito: true });
         });
     }
 };
